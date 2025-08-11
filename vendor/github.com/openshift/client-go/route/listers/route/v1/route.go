@@ -3,6 +3,8 @@
 package v1
 
 import (
+	"context"
+
 	routev1 "github.com/openshift/api/route/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	listers "k8s.io/client-go/listers"
@@ -14,7 +16,7 @@ import (
 type RouteLister interface {
 	// List lists all Routes in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*routev1.Route, err error)
+	List(ctx context.Context, selector labels.Selector) (ret []*routev1.Route, err error)
 	// Routes returns an object that can list and get Routes.
 	Routes(namespace string) RouteNamespaceLister
 	RouteListerExpansion
@@ -40,10 +42,10 @@ func (s *routeLister) Routes(namespace string) RouteNamespaceLister {
 type RouteNamespaceLister interface {
 	// List lists all Routes in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*routev1.Route, err error)
+	List(ctx context.Context, selector labels.Selector) (ret []*routev1.Route, err error)
 	// Get retrieves the Route from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*routev1.Route, error)
+	Get(ctx context.Context, name string) (*routev1.Route, error)
 	RouteNamespaceListerExpansion
 }
 

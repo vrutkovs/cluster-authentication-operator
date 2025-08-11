@@ -3,6 +3,8 @@
 package v1
 
 import (
+	"context"
+
 	oauthv1 "github.com/openshift/api/oauth/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	listers "k8s.io/client-go/listers"
@@ -14,10 +16,10 @@ import (
 type UserOAuthAccessTokenLister interface {
 	// List lists all UserOAuthAccessTokens in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*oauthv1.UserOAuthAccessToken, err error)
+	List(ctx context.Context, selector labels.Selector) (ret []*oauthv1.UserOAuthAccessToken, err error)
 	// Get retrieves the UserOAuthAccessToken from the index for a given name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*oauthv1.UserOAuthAccessToken, error)
+	Get(ctx context.Context, name string) (*oauthv1.UserOAuthAccessToken, error)
 	UserOAuthAccessTokenListerExpansion
 }
 
