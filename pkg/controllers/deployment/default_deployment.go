@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"crypto/sha512"
 	"encoding/base64"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
+	"go.opentelemetry.io/otel"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
@@ -27,13 +29,20 @@ import (
 )
 
 func getOAuthServerDeployment(
+	ctx context.Context,
 	operatorSpec *operatorv1.OperatorSpec,
 	proxyConfig *configv1.Proxy,
 	bootstrapUserExists bool,
 	resourceVersions ...string,
 ) (*appsv1.Deployment, error) {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "oauthServerDeploymentSyncer.getOAuthServerDeployment")
+	defer span.End()
+
 	// load deployment
+	_, subSpan := tracer.Start(ctx, "resourceread.ReadDeploymentV1OrDie")
 	deployment := resourceread.ReadDeploymentV1OrDie(bindata.MustAsset("oauth-openshift/deployment.yaml"))
+	subSpan.End()
 
 	// force redeploy when any associated resource changes
 	// we use a hash to prevent this value from growing indefinitely
@@ -84,7 +93,7 @@ func getOAuthServerDeployment(
 		)
 	}
 
-	idpSyncData, err := getSyncDataFromOperatorConfig(observedConfig)
+	idpSyncData, err := getSyncDataFromOperatorConfig(ctx, observedConfig)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get IDP sync data: %v", err)
 	}
@@ -117,7 +126,11 @@ func getOAuthServerDeployment(
 	return deployment, nil
 }
 
-func getSyncDataFromOperatorConfig(observedConfig []byte) (*datasync.ConfigSyncData, error) {
+func getSyncDataFromOperatorConfig(ctx context.Context, observedConfig []byte) (*datasync.ConfigSyncData, error) {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "deployment.getSyncDataFromOperatorConfig")
+	defer span.End()
+
 	var configDeserialized map[string]interface{}
 	if err := yaml.Unmarshal(observedConfig, &configDeserialized); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal the observedConfig: %v", err)

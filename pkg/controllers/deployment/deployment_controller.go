@@ -227,15 +227,17 @@ func (c *oauthServerDeploymentSyncer) Sync(ctx context.Context, syncContext fact
 	// Determine whether the bootstrap user has been deleted so that
 	// detail can be used in computing the deployment.
 	if c.bootstrapUserChangeRollOut {
+		_, subSpan := tracer.Start(ctx, "oauthServerDeploymentSyncer.bootstrapUserChangeRollOut")
 		if userExists, err := c.bootstrapUserDataGetter.IsEnabled(); err != nil {
 			klog.Warningf("unable to determine the state of bootstrap user: %v", err)
 		} else {
 			c.bootstrapUserChangeRollOut = userExists
 		}
+		subSpan.End()
 	}
 
 	// deployment, have RV of all resources
-	expectedDeployment, err := getOAuthServerDeployment(operatorSpec, proxyConfig, c.bootstrapUserChangeRollOut, resourceVersions...)
+	expectedDeployment, err := getOAuthServerDeployment(ctx, operatorSpec, proxyConfig, c.bootstrapUserChangeRollOut, resourceVersions...)
 	if err != nil {
 		return nil, false, append(errs, err)
 	}
@@ -268,6 +270,7 @@ func (c *oauthServerDeploymentSyncer) Sync(ctx context.Context, syncContext fact
 	}
 	expectedDeployment.Spec.Replicas = masterNodeCount
 
+	_, subSpan := tracer.Start(ctx, "oauthServerDeploymentSyncer.ApplyDeployment")
 	deployment, _, err := resourceapply.ApplyDeployment(ctx, c.deployments,
 		syncContext.Recorder(),
 		expectedDeployment,
@@ -276,11 +279,16 @@ func (c *oauthServerDeploymentSyncer) Sync(ctx context.Context, syncContext fact
 	if err != nil {
 		return nil, false, append(errs, fmt.Errorf("applying deployment of the integrated OAuth server failed: %w", err))
 	}
+	subSpan.End()
 
 	return deployment, true, errs
 }
 
 func (c *oauthServerDeploymentSyncer) getProxyConfig(ctx context.Context) (*configv1.Proxy, error) {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "oauthServerDeploymentSyncer.getProxyConfig")
+	defer span.End()
+
 	proxyConfig, err := c.proxyLister.Get(ctx, "cluster")
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -293,6 +301,10 @@ func (c *oauthServerDeploymentSyncer) getProxyConfig(ctx context.Context) (*conf
 }
 
 func (c *oauthServerDeploymentSyncer) getConfigResourceVersions(ctx context.Context) ([]string, error) {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "oauthServerDeploymentSyncer.getConfigResourceVersions")
+	defer span.End()
+
 	var configRVs []string
 
 	configMaps, err := c.configMapLister.ConfigMaps("openshift-authentication").List(ctx, labels.Everything())
