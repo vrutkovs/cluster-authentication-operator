@@ -104,8 +104,8 @@ func NewPayloadConfigController(
 		ToController(c.controllerInstanceName, recorder.WithComponentSuffix("payload-config-controller"))
 }
 
-func (c *payloadConfigController) getAuthConfig() (*operatorv1.OperatorSpec, []operatorv1.OperatorCondition) {
-	spec, _, _, err := c.operatorClient.GetOperatorState()
+func (c *payloadConfigController) getAuthConfig(ctx context.Context) (*operatorv1.OperatorSpec, []operatorv1.OperatorCondition) {
+	spec, _, _, err := c.operatorClient.GetOperatorState(ctx)
 	if err != nil {
 		return nil, []operatorv1.OperatorCondition{
 			{
@@ -149,7 +149,7 @@ func (c *payloadConfigController) getSessionSecret(ctx context.Context, recorder
 }
 
 func (c *payloadConfigController) sync(ctx context.Context, syncContext factory.SyncContext) error {
-	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(); err != nil {
+	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {
 		if err := c.removeOperands(ctx); err != nil {
@@ -165,13 +165,13 @@ func (c *payloadConfigController) sync(ctx context.Context, syncContext factory.
 	foundConditions := []operatorv1.OperatorCondition{}
 	foundConditions = append(foundConditions, c.getSessionSecret(ctx, syncContext.Recorder())...)
 
-	route, routeConditions := common.GetOAuthServerRoute(c.routeLister, "OAuthConfigRoute")
+	route, routeConditions := common.GetOAuthServerRoute(ctx, c.routeLister, "OAuthConfigRoute")
 	foundConditions = append(foundConditions, routeConditions...)
 
-	service, serviceConditions := common.GetOAuthServerService(c.serviceLister, "OAuthConfigService")
+	service, serviceConditions := common.GetOAuthServerService(ctx, c.serviceLister, "OAuthConfigService")
 	foundConditions = append(foundConditions, serviceConditions...)
 
-	operatorConfig, operatorConfigConditions := c.getAuthConfig()
+	operatorConfig, operatorConfigConditions := c.getAuthConfig(ctx)
 	foundConditions = append(foundConditions, operatorConfigConditions...)
 
 	// we need route and service to be not nil

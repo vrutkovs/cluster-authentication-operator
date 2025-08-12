@@ -77,7 +77,7 @@ func countReadyWorkerNodes(nodes []*corev1.Node) int {
 }
 
 func (c *ingressNodesAvailableController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
-	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(); err != nil {
+	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {
 		// Server-Side-Apply with an empty operator status for the specific field manager
@@ -88,7 +88,7 @@ func (c *ingressNodesAvailableController) sync(ctx context.Context, syncCtx fact
 
 	foundConditions := []operatorv1.OperatorCondition{}
 
-	workers, err := c.nodeLister.List(labels.SelectorFromSet(labels.Set{"node-role.kubernetes.io/worker": ""}))
+	workers, err := c.nodeLister.List(ctx, labels.SelectorFromSet(labels.Set{"node-role.kubernetes.io/worker": ""}))
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (c *ingressNodesAvailableController) sync(ctx context.Context, syncCtx fact
 	// we don't have any worker nodes schedulable, but we can run clusters that have master nodes schedulable, so we need to check that
 	// before going available==false
 	var masters []*corev1.Node
-	masters, err = c.nodeLister.List(labels.SelectorFromSet(labels.Set{"node-role.kubernetes.io/master": ""}))
+	masters, err = c.nodeLister.List(ctx, labels.SelectorFromSet(labels.Set{"node-role.kubernetes.io/master": ""}))
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (c *ingressNodesAvailableController) sync(ctx context.Context, syncCtx fact
 }
 
 func (c *ingressNodesAvailableController) numberOfCustomIngressTargets(ctx context.Context, syncCtx factory.SyncContext) (int, error) {
-	ingressControllerConfig, err := c.ingressLister.IngressControllers("openshift-ingress-operator").Get("default")
+	ingressControllerConfig, err := c.ingressLister.IngressControllers("openshift-ingress-operator").Get(ctx, "default")
 	switch {
 	case errors.IsNotFound(err):
 		// do nothing, we have no worker nodes and it should fail the condition
@@ -163,7 +163,7 @@ func (c *ingressNodesAvailableController) numberOfCustomIngressTargets(ctx conte
 		return 0, nil // if the node selector doesn't parse properly, then we know that we have zero nodes matching
 	}
 
-	ingressTargets, err := c.nodeLister.List(labels.SelectorFromSet(nodeSelector))
+	ingressTargets, err := c.nodeLister.List(ctx, labels.SelectorFromSet(nodeSelector))
 	if err != nil {
 		return 0, err // return and retry
 	}

@@ -288,7 +288,7 @@ func TestExternalOIDCConfigAvailable(t *testing.T) {
 				&fakeInformer[corelistersv1.ConfigMapLister]{corelistersv1.NewConfigMapLister(cmIndexer)},
 			)
 
-			available, err := authConfigChecker.OIDCAvailable()
+			available, err := authConfigChecker.OIDCAvailable(t.Context())
 
 			if tt.expectError != (err != nil) {
 				t.Fatalf("expected error %v; got %v", tt.expectError, err)

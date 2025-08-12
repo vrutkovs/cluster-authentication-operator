@@ -73,7 +73,7 @@ func NewProxyConfigChecker(
 
 // sync attempts to connect to route using configured proxy settings and reports any error.
 func (p *proxyConfigChecker) sync(ctx context.Context, _ factory.SyncContext) error {
-	if oidcAvailable, err := p.authConfigChecker.OIDCAvailable(); err != nil {
+	if oidcAvailable, err := p.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {
 		return nil
@@ -85,7 +85,7 @@ func (p *proxyConfigChecker) sync(ctx context.Context, _ factory.SyncContext) er
 		return nil
 	}
 
-	route, err := p.routeLister.Routes(p.routeNamespace).Get(p.routeName)
+	route, err := p.routeLister.Routes(p.routeNamespace).Get(ctx, p.routeName)
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func (p *proxyConfigChecker) sync(ctx context.Context, _ factory.SyncContext) er
 	}
 	routeURL.Path = "healthz"
 
-	clientWithProxy, clientWithoutProxy, err := p.createHTTPClients()
+	clientWithProxy, clientWithoutProxy, err := p.createHTTPClients(ctx)
 	if err != nil {
 		return err
 	}
@@ -129,8 +129,8 @@ func checkProxyConfig(ctx context.Context, endpointURL *url.URL, noProxy string,
 }
 
 // createHTTPClients returns two http clients, one with proxy and another without proxy
-func (p *proxyConfigChecker) createHTTPClients() (*http.Client, *http.Client, error) {
-	caPool, err := p.getCACerts()
+func (p *proxyConfigChecker) createHTTPClients(ctx context.Context) (*http.Client, *http.Client, error) {
+	caPool, err := p.getCACerts(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -152,12 +152,12 @@ func (p *proxyConfigChecker) createHTTPClients() (*http.Client, *http.Client, er
 }
 
 // getCACerts retrieves the CA bundle in openshift cluster
-func (p *proxyConfigChecker) getCACerts() (*x509.CertPool, error) {
+func (p *proxyConfigChecker) getCACerts(ctx context.Context) (*x509.CertPool, error) {
 	caPool := x509.NewCertPool()
 
 	for ns, configMaps := range p.caConfigMaps {
 		for _, cmName := range configMaps {
-			caCM, err := p.configMapLister.ConfigMaps(ns).Get(cmName)
+			caCM, err := p.configMapLister.ConfigMaps(ns).Get(ctx, cmName)
 			if err != nil {
 				return nil, err
 			}

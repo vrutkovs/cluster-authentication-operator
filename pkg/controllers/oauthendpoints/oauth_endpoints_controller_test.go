@@ -107,7 +107,7 @@ func Test_listOAuthRoutes(t *testing.T) {
 				require.NoError(t, routes.Add(tt.route))
 			}
 
-			got, err := listOAuthRoutes(configv1lister.NewIngressLister(ingresses), routev1listers.NewRouteLister(routes))
+			got, err := listOAuthRoutes(t.Context(), configv1lister.NewIngressLister(ingresses), routev1listers.NewRouteLister(routes))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("listOAuthRoutes() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -115,8 +115,8 @@ func degradeIfTimeElapsed(conditions []metav1.Condition, condition *v1.Condition
 	}
 }
 
-func checkRouteAvailablity(secretLister corev1listers.SecretLister, ingressConfig *configv1.Ingress, route *routev1.Route) []*v1.ConditionApplyConfiguration {
-	if err := routeAvailablity(secretLister, route.Spec.Host, ingressConfig); err != nil {
+func checkRouteAvailablity(ctx context.Context, secretLister corev1listers.SecretLister, ingressConfig *configv1.Ingress, route *routev1.Route) []*v1.ConditionApplyConfiguration {
+	if err := routeAvailablity(ctx, secretLister, route.Spec.Host, ingressConfig); err != nil {
 		now := metav1.Now()
 		reason := "ErrorReachingOutToService"
 		message := fmt.Sprintf("unexpected error at %s: %v", route.Spec.Host, err)
@@ -137,10 +137,10 @@ func checkRouteAvailablity(secretLister corev1listers.SecretLister, ingressConfi
 	return nil
 }
 
-func routeAvailablity(secretLister corev1listers.SecretLister, host string, ingress *configv1.Ingress) error {
+func routeAvailablity(ctx context.Context, secretLister corev1listers.SecretLister, host string, ingress *configv1.Ingress) error {
 	url := "https://" + host + "/healthz"
 
-	reqCtx, cancel := context.WithTimeout(context.TODO(), 10*time.Second) // avoid waiting forever
+	reqCtx, cancel := context.WithTimeout(ctx, 10*time.Second) // avoid waiting forever
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, url, nil)
@@ -148,7 +148,7 @@ func routeAvailablity(secretLister corev1listers.SecretLister, host string, ingr
 		return err
 	}
 
-	certBytes, _, _, err := common.GetActiveRouterCertKeyBytes(secretLister, ingress, "openshift-authentication", "v4-0-config-system-router-certs", "v4-0-config-system-custom-router-certs")
+	certBytes, _, _, err := common.GetActiveRouterCertKeyBytes(ctx, secretLister, ingress, "openshift-authentication", "v4-0-config-system-router-certs", "v4-0-config-system-custom-router-certs")
 	if err != nil {
 		return err
 	}

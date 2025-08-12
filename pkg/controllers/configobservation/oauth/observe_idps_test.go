@@ -203,7 +203,7 @@ func TestObserveIdentityProviders(t *testing.T) {
 			}
 			eventsRecorder := events.NewInMemoryRecorder(t.Name(), clocktesting.NewFakePassiveClock(time.Now()))
 
-			got, errs := ObserveIdentityProviders(listers, eventsRecorder, tt.previouslyObservedConfig)
+			got, errs := ObserveIdentityProviders(t.Context(), listers, eventsRecorder, tt.previouslyObservedConfig)
 
 			if len(errs) > 0 {
 				t.Errorf("Expected 0 errors, got %v.", errs)

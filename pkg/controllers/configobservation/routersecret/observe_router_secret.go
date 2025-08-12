@@ -1,6 +1,8 @@
 package routersecret
 
 import (
+	"context"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -14,7 +16,7 @@ import (
 	"github.com/openshift/cluster-authentication-operator/pkg/controllers/customroute"
 )
 
-func ObserveRouterSecret(genericlisters configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, _ []error) {
+func ObserveRouterSecret(ctx context.Context, genericlisters configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, _ []error) {
 	namedCertificatesPath := []string{"servingInfo", "namedCertificates"}
 	defer func() {
 		ret = configobserver.Pruned(ret, namedCertificatesPath)
@@ -23,7 +25,7 @@ func ObserveRouterSecret(genericlisters configobserver.Listers, recorder events.
 	listers := genericlisters.(configobservation.Listers)
 	errs := []error{}
 
-	observedNamedCertificates, err := getObservedNamedCertificates(listers)
+	observedNamedCertificates, err := getObservedNamedCertificates(ctx, listers)
 	if err != nil {
 		return existingConfig, append(errs, err)
 	}
@@ -50,10 +52,10 @@ func ObserveRouterSecret(genericlisters configobserver.Listers, recorder events.
 	return observedConfig, errs
 }
 
-func getObservedNamedCertificates(listers configobservation.Listers) ([]interface{}, error) {
+func getObservedNamedCertificates(ctx context.Context, listers configobservation.Listers) ([]interface{}, error) {
 	// Check for custom serving certificate secret
 	defaultSecretName := "v4-0-config-system-router-certs"
-	secret, err := common.GetActiveRouterSecret(listers.SecretsLister, "openshift-authentication", defaultSecretName, "v4-0-config-system-custom-router-certs")
+	secret, err := common.GetActiveRouterSecret(ctx, listers.SecretsLister, "openshift-authentication", defaultSecretName, "v4-0-config-system-custom-router-certs")
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +64,7 @@ func getObservedNamedCertificates(listers configobservation.Listers) ([]interfac
 		return routerSecretToSNI(secret), nil
 	}
 
-	ingress, err := listers.IngressLister.Get("cluster")
+	ingress, err := listers.IngressLister.Get(ctx, "cluster")
 	if err != nil {
 		return nil, err
 	}

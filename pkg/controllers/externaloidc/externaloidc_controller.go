@@ -87,7 +87,7 @@ func NewExternalOIDCController(
 }
 
 func (c *externalOIDCController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
-	auth, err := c.authLister.Get("cluster")
+	auth, err := c.authLister.Get(ctx, "cluster")
 	if err != nil {
 		return fmt.Errorf("could not get authentication/cluster: %v", err)
 	}
@@ -97,7 +97,7 @@ func (c *externalOIDCController) sync(ctx context.Context, syncCtx factory.SyncC
 		return c.deleteAuthConfig(ctx, syncCtx)
 	}
 
-	authConfig, err := c.generateAuthConfig(*auth)
+	authConfig, err := c.generateAuthConfig(ctx, *auth)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (c *externalOIDCController) sync(ctx context.Context, syncCtx factory.SyncC
 		return err
 	}
 
-	existingApplyConfig, err := c.getExistingApplyConfig()
+	existingApplyConfig, err := c.getExistingApplyConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (c *externalOIDCController) sync(ctx context.Context, syncCtx factory.SyncC
 // deleteAuthConfig checks if the auth config ConfigMap exists in the managed namespace, and deletes it
 // if it does; it returns an error if it encounters one.
 func (c *externalOIDCController) deleteAuthConfig(ctx context.Context, syncCtx factory.SyncContext) error {
-	if _, err := c.configMapLister.ConfigMaps(managedNamespace).Get(targetAuthConfigCMName); apierrors.IsNotFound(err) {
+	if _, err := c.configMapLister.ConfigMaps(managedNamespace).Get(ctx, targetAuthConfigCMName); apierrors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
 		return err
@@ -149,7 +149,7 @@ func (c *externalOIDCController) deleteAuthConfig(ctx context.Context, syncCtx f
 
 // generateAuthConfig creates a structured JWT AuthenticationConfiguration for OIDC
 // from the configuration found in the authentication/cluster resource.
-func (c *externalOIDCController) generateAuthConfig(auth configv1.Authentication) (*apiserverv1beta1.AuthenticationConfiguration, error) {
+func (c *externalOIDCController) generateAuthConfig(ctx context.Context, auth configv1.Authentication) (*apiserverv1beta1.AuthenticationConfiguration, error) {
 	authConfig := apiserverv1beta1.AuthenticationConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       kindAuthenticationConfiguration,
@@ -159,7 +159,7 @@ func (c *externalOIDCController) generateAuthConfig(auth configv1.Authentication
 
 	errs := []error{}
 	for _, provider := range auth.Spec.OIDCProviders {
-		jwt, err := generateJWTForProvider(provider, c.configMapLister, c.featureGates, auth.Spec.ServiceAccountIssuer)
+		jwt, err := generateJWTForProvider(ctx, provider, c.configMapLister, c.featureGates, auth.Spec.ServiceAccountIssuer)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -175,10 +175,10 @@ func (c *externalOIDCController) generateAuthConfig(auth configv1.Authentication
 	return &authConfig, nil
 }
 
-func generateJWTForProvider(provider configv1.OIDCProvider, configMapLister corev1listers.ConfigMapLister, featureGates featuregates.FeatureGate, serviceAccountIssuer string) (apiserverv1beta1.JWTAuthenticator, error) {
+func generateJWTForProvider(ctx context.Context, provider configv1.OIDCProvider, configMapLister corev1listers.ConfigMapLister, featureGates featuregates.FeatureGate, serviceAccountIssuer string) (apiserverv1beta1.JWTAuthenticator, error) {
 	out := apiserverv1beta1.JWTAuthenticator{}
 
-	issuer, err := generateIssuer(provider.Issuer, configMapLister, serviceAccountIssuer)
+	issuer, err := generateIssuer(ctx, provider.Issuer, configMapLister, serviceAccountIssuer)
 	if err != nil {
 		return apiserverv1beta1.JWTAuthenticator{}, fmt.Errorf("generating issuer for provider %q: %v", provider.Name, err)
 	}
@@ -200,7 +200,7 @@ func generateJWTForProvider(provider configv1.OIDCProvider, configMapLister core
 	return out, nil
 }
 
-func generateIssuer(issuer configv1.TokenIssuer, configMapLister corev1listers.ConfigMapLister, serviceAccountIssuer string) (apiserverv1beta1.Issuer, error) {
+func generateIssuer(ctx context.Context, issuer configv1.TokenIssuer, configMapLister corev1listers.ConfigMapLister, serviceAccountIssuer string) (apiserverv1beta1.Issuer, error) {
 	out := apiserverv1beta1.Issuer{}
 
 	if len(serviceAccountIssuer) > 0 {
@@ -217,7 +217,7 @@ func generateIssuer(issuer configv1.TokenIssuer, configMapLister corev1listers.C
 	}
 
 	if len(issuer.CertificateAuthority.Name) > 0 {
-		ca, err := getCertificateAuthorityFromConfigMap(issuer.CertificateAuthority.Name, configMapLister)
+		ca, err := getCertificateAuthorityFromConfigMap(ctx, issuer.CertificateAuthority.Name, configMapLister)
 		if err != nil {
 			return apiserverv1beta1.Issuer{}, fmt.Errorf("getting CertificateAuthority for issuer: %v", err)
 		}
@@ -227,8 +227,8 @@ func generateIssuer(issuer configv1.TokenIssuer, configMapLister corev1listers.C
 	return out, nil
 }
 
-func getCertificateAuthorityFromConfigMap(name string, configMapLister corev1listers.ConfigMapLister) (string, error) {
-	caConfigMap, err := configMapLister.ConfigMaps(configNamespace).Get(name)
+func getCertificateAuthorityFromConfigMap(ctx context.Context, name string, configMapLister corev1listers.ConfigMapLister) (string, error) {
+	caConfigMap, err := configMapLister.ConfigMaps(configNamespace).Get(ctx, name)
 	if err != nil {
 		return "", fmt.Errorf("could not retrieve auth configmap %s/%s to check CA bundle: %v", configNamespace, name, err)
 	}
@@ -453,8 +453,8 @@ func getExpectedApplyConfig(authConfig apiserverv1beta1.AuthenticationConfigurat
 
 // getExistingApplyConfig checks if an authConfig configmap already exists, and returns an apply configuration
 // that represents it if it does; it returns nil otherwise.
-func (c *externalOIDCController) getExistingApplyConfig() (*corev1ac.ConfigMapApplyConfiguration, error) {
-	existingCM, err := c.configMapLister.ConfigMaps(managedNamespace).Get(targetAuthConfigCMName)
+func (c *externalOIDCController) getExistingApplyConfig(ctx context.Context) (*corev1ac.ConfigMapApplyConfiguration, error) {
+	existingCM, err := c.configMapLister.ConfigMaps(managedNamespace).Get(ctx, targetAuthConfigCMName)
 	if apierrors.IsNotFound(err) {
 		return nil, nil
 	} else if err != nil {

@@ -68,18 +68,18 @@ func NewTrustDistributionController(
 }
 
 func (c *trustDistributionController) sync(ctx context.Context, syncContext factory.SyncContext) error {
-	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(); err != nil {
+	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {
 		return c.removeOperands(ctx)
 	}
 
-	ingressConfig, err := c.ingressLister.Get("cluster")
+	ingressConfig, err := c.ingressLister.Get(ctx, "cluster")
 	if err != nil {
 		return err
 	}
 
-	certBundle, _, _, err := common.GetActiveRouterCertKeyBytes(c.secretsLister,
+	certBundle, _, _, err := common.GetActiveRouterCertKeyBytes(ctx, c.secretsLister,
 		ingressConfig,
 		authNamespace,
 		"v4-0-config-system-router-certs",
@@ -128,7 +128,7 @@ func (c *trustDistributionController) sync(ctx context.Context, syncContext fact
 }
 
 func (c *trustDistributionController) removeOperands(ctx context.Context) error {
-	if _, err := c.configMapsLister.ConfigMaps(managedNamespace).Get(servingCertConfigMap); errors.IsNotFound(err) {
+	if _, err := c.configMapsLister.ConfigMaps(managedNamespace).Get(ctx, servingCertConfigMap); errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("getting configmap %s/%s: %v", managedNamespace, servingCertConfigMap, err)

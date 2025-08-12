@@ -1,6 +1,8 @@
 package oauth
 
 import (
+	"context"
+
 	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -16,7 +18,7 @@ import (
 
 var identityProvidersMounts = []string{"volumesToMount", "identityProviders"}
 
-func ObserveIdentityProviders(genericlisters configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
+func ObserveIdentityProviders(ctx context.Context, genericlisters configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
 	identityProvidersPath := []string{"oauthConfig", "identityProviders"}
 	defer func() {
 		ret = configobserver.Pruned(ret, identityProvidersPath, identityProvidersMounts)
@@ -41,7 +43,7 @@ func ObserveIdentityProviders(genericlisters configobserver.Listers, recorder ev
 		return existingConfig, append(errs, err)
 	}
 
-	oauthConfig, err := listers.OAuthLister().Get("cluster")
+	oauthConfig, err := listers.OAuthLister().Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
 		// revert to default state, meaning no IdPs
 		klog.Warning("oauth.config.openshift.io/cluster: not found")
@@ -52,7 +54,7 @@ func ObserveIdentityProviders(genericlisters configobserver.Listers, recorder ev
 
 	// convert identity providers from config to oauth-configuration API and
 	// extract the CMs and Secrets that need to be synchronized to the target NS
-	convertedObservedIdentityProviders, observedSyncData, idpErrs := convertIdentityProviders(listers.ConfigMapLister, listers.SecretsLister, oauthConfig.Spec.IdentityProviders)
+	convertedObservedIdentityProviders, observedSyncData, idpErrs := convertIdentityProviders(ctx, listers.ConfigMapLister, listers.SecretsLister, oauthConfig.Spec.IdentityProviders)
 	if len(idpErrs) > 0 {
 		return existingConfig, append(errs, idpErrs...)
 	}
@@ -73,7 +75,7 @@ func ObserveIdentityProviders(genericlisters configobserver.Listers, recorder ev
 		recorder.Eventf("ObserveIdentityProviders", "identity providers changed to %q", convertedObservedIdentityProviders)
 	}
 
-	if syncDataErrs := observedSyncData.Validate(listers.ConfigMapLister, listers.SecretsLister); len(syncDataErrs) > 0 {
+	if syncDataErrs := observedSyncData.Validate(ctx, listers.ConfigMapLister, listers.SecretsLister); len(syncDataErrs) > 0 {
 		return existingConfig, append(errs, syncDataErrs...)
 	}
 

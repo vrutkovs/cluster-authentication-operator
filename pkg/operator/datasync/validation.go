@@ -1,6 +1,7 @@
 package datasync
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -25,8 +26,8 @@ var validators = map[string]func(data []byte) []error{
 
 func noValidation(_ []byte) []error { return []error{} }
 
-func validateSecret(secretsLister corelistersv1.SecretLister, src sourceData) []error {
-	s, err := secretsLister.Secrets("openshift-config").Get(src.Name)
+func validateSecret(ctx context.Context, secretsLister corelistersv1.SecretLister, src sourceData) []error {
+	s, err := secretsLister.Secrets("openshift-config").Get(ctx, src.Name)
 	if err != nil {
 		return []error{err}
 	}
@@ -39,8 +40,8 @@ func validateSecret(secretsLister corelistersv1.SecretLister, src sourceData) []
 	return validators[src.Key](data)
 }
 
-func validateConfigMap(cmLister corelistersv1.ConfigMapLister, src sourceData) []error {
-	cm, err := cmLister.ConfigMaps("openshift-config").Get(src.Name)
+func validateConfigMap(ctx context.Context, cmLister corelistersv1.ConfigMapLister, src sourceData) []error {
+	cm, err := cmLister.ConfigMaps("openshift-config").Get(ctx, src.Name)
 	if err != nil {
 		return []error{err}
 	}

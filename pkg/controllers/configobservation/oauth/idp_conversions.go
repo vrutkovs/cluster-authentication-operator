@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -54,6 +55,7 @@ type idpData struct {
 }
 
 func convertIdentityProviders(
+	ctx context.Context,
 	cmLister corelistersv1.ConfigMapLister,
 	secretsLister corelistersv1.SecretLister,
 	identityProviders []configv1.IdentityProvider,
@@ -64,7 +66,7 @@ func convertIdentityProviders(
 	errs := []error{}
 
 	for i, idp := range defaultIDPMappingMethods(identityProviders) {
-		data, err := convertProviderConfigToIDPData(cmLister, secretsLister, &idp.IdentityProviderConfig, syncData, i)
+		data, err := convertProviderConfigToIDPData(ctx, cmLister, secretsLister, &idp.IdentityProviderConfig, syncData, i)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to apply IDP %s config: %v", idp.Name, err))
 			continue
@@ -112,6 +114,7 @@ func defaultIDPMappingMethods(identityProviders []configv1.IdentityProvider) []c
 }
 
 func convertProviderConfigToIDPData(
+	ctx context.Context,
 	cmLister corelistersv1.ConfigMapLister,
 	secretsLister corelistersv1.SecretLister,
 	providerConfig *configv1.IdentityProviderConfig,
@@ -242,7 +245,7 @@ func convertProviderConfigToIDPData(
 			return nil, fmt.Errorf(missingProviderFmt, providerConfig.Type)
 		}
 
-		urls, err := discoverOpenIDURLs(cmLister, openIDConfig.Issuer, corev1.ServiceAccountRootCAKey, openIDConfig.CA)
+		urls, err := discoverOpenIDURLs(ctx, cmLister, openIDConfig.Issuer, corev1.ServiceAccountRootCAKey, openIDConfig.CA)
 		if err != nil {
 			return nil, err
 		}
@@ -273,6 +276,7 @@ func convertProviderConfigToIDPData(
 		// challenge-redirecting IdPs to be configured with OIDC so it is safe
 		// to allow challenge-issuing flow if it's available on the OIDC side
 		challengeFlowsAllowed, err := checkOIDCPasswordGrantFlow(
+			ctx,
 			cmLister,
 			secretsLister,
 			urls.Token,
@@ -313,7 +317,7 @@ func convertProviderConfigToIDPData(
 
 // discoverOpenIDURLs retrieves basic information about an OIDC server with hostname
 // given by the `issuer` argument
-func discoverOpenIDURLs(cmLister corelistersv1.ConfigMapLister, issuer, key string, ca configv1.ConfigMapNameReference) (*osinv1.OpenIDURLs, error) {
+func discoverOpenIDURLs(ctx context.Context, cmLister corelistersv1.ConfigMapLister, issuer, key string, ca configv1.ConfigMapNameReference) (*osinv1.OpenIDURLs, error) {
 	issuer = strings.TrimRight(issuer, "/") // TODO make impossible via validation and remove
 
 	wellKnown := issuer + "/.well-known/openid-configuration"
@@ -322,7 +326,7 @@ func discoverOpenIDURLs(cmLister corelistersv1.ConfigMapLister, issuer, key stri
 		return nil, err
 	}
 
-	rt, err := transport.TransportForCARef(cmLister, ca.Name, key)
+	rt, err := transport.TransportForCARef(ctx, cmLister, ca.Name, key)
 	if err != nil {
 		return nil, err
 	}
@@ -372,13 +376,14 @@ func discoverOpenIDURLs(cmLister corelistersv1.ConfigMapLister, issuer, key stri
 }
 
 func checkOIDCPasswordGrantFlow(
+	ctx context.Context,
 	cmLister corelistersv1.ConfigMapLister,
 	secretsLister corelistersv1.SecretLister,
 	tokenURL, clientID string,
 	caRererence configv1.ConfigMapNameReference,
 	clientSecretReference configv1.SecretNameReference,
 ) (bool, error) {
-	secret, err := secretsLister.Secrets("openshift-config").Get(clientSecretReference.Name)
+	secret, err := secretsLister.Secrets("openshift-config").Get(ctx, clientSecretReference.Name)
 	if err != nil {
 		return false, fmt.Errorf("couldn't get the referenced secret: %v", err)
 	}
@@ -395,7 +400,7 @@ func checkOIDCPasswordGrantFlow(
 		return false, fmt.Errorf("the referenced secret does not contain a value for the 'clientSecret' key")
 	}
 
-	transport, err := transport.TransportForCARef(cmLister, caRererence.Name, corev1.ServiceAccountRootCAKey)
+	transport, err := transport.TransportForCARef(ctx, cmLister, caRererence.Name, corev1.ServiceAccountRootCAKey)
 	if err != nil {
 		return false, fmt.Errorf("couldn't get a transport for the referenced CA: %v", err)
 	}

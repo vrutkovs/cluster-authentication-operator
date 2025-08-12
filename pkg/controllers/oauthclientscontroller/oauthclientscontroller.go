@@ -43,6 +43,7 @@ type oauthClientsController struct {
 }
 
 func NewOAuthClientsSwitchedController(
+	ctx context.Context,
 	operatorClient v1helpers.OperatorClient,
 	oauthClientsClient oauthclient.Interface,
 	routeInformers routeinformers.SharedInformerFactory,
@@ -81,7 +82,7 @@ func NewOAuthClientsSwitchedController(
 	}
 
 	switchConditionFn := func() (bool, error) {
-		oidcAvailable, err := authConfigChecker.OIDCAvailable()
+		oidcAvailable, err := authConfigChecker.OIDCAvailable(ctx)
 		if err != nil {
 			return false, err
 		}
@@ -100,7 +101,7 @@ func NewOAuthClientsSwitchedController(
 }
 
 func (c *oauthClientsController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
-	ingress, err := c.getIngressConfig()
+	ingress, err := c.getIngressConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -111,7 +112,7 @@ func (c *oauthClientsController) sync(ctx context.Context, syncCtx factory.SyncC
 		hostname = "oauth-openshift." + ingress.Spec.Domain
 	}
 
-	routeHost, err := c.getCanonicalRouteHost(hostname)
+	routeHost, err := c.getCanonicalRouteHost(ctx, hostname)
 	if err != nil {
 		return err
 	}
@@ -119,8 +120,8 @@ func (c *oauthClientsController) sync(ctx context.Context, syncCtx factory.SyncC
 	return c.ensureBootstrappedOAuthClients(ctx, "https://"+routeHost)
 }
 
-func (c *oauthClientsController) getIngressConfig() (*configv1.Ingress, error) {
-	ingress, err := c.ingressLister.Get("cluster")
+func (c *oauthClientsController) getIngressConfig(ctx context.Context) (*configv1.Ingress, error) {
+	ingress, err := c.ingressLister.Get(ctx, "cluster")
 	if err != nil {
 		return nil, fmt.Errorf("unable to get cluster ingress config: %v", err)
 	}
@@ -130,8 +131,8 @@ func (c *oauthClientsController) getIngressConfig() (*configv1.Ingress, error) {
 	return ingress, nil
 }
 
-func (c *oauthClientsController) getCanonicalRouteHost(expectedHost string) (string, error) {
-	route, err := c.routeLister.Routes("openshift-authentication").Get("oauth-openshift")
+func (c *oauthClientsController) getCanonicalRouteHost(ctx context.Context, expectedHost string) (string, error) {
+	route, err := c.routeLister.Routes("openshift-authentication").Get(ctx, "oauth-openshift")
 	if err != nil {
 		return "", err
 	}
@@ -179,7 +180,7 @@ func (c *oauthClientsController) ensureBootstrappedOAuthClientsMissing(ctx conte
 		"openshift-challenging-client",
 		"openshift-cli-client",
 	} {
-		_, err := c.oauthClientLister.Get(clientName)
+		_, err := c.oauthClientLister.Get(ctx, clientName)
 		if errors.IsNotFound(err) {
 			continue
 		} else if err != nil {
@@ -207,7 +208,7 @@ func randomBits(bits uint) []byte {
 }
 
 func (c *oauthClientsController) ensureOAuthClient(ctx context.Context, client oauthv1.OAuthClient) error {
-	_, err := c.oauthClientLister.Get(client.Name)
+	_, err := c.oauthClientLister.Get(ctx, client.Name)
 	if apierrors.IsNotFound(err) {
 		_, err = c.oauthClientClient.Create(ctx, &client, metav1.CreateOptions{})
 		return err
@@ -218,7 +219,7 @@ func (c *oauthClientsController) ensureOAuthClient(ctx context.Context, client o
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		existing, err := c.oauthClientLister.Get(client.Name)
+		existing, err := c.oauthClientLister.Get(ctx, client.Name)
 		if err != nil {
 			return err
 		}

@@ -5,13 +5,15 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
+	"context"
+
 	operatorv1 "github.com/openshift/api/operator/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	routev1lister "github.com/openshift/client-go/route/listers/route/v1"
 )
 
-func GetOAuthServerRoute(routeLister routev1lister.RouteLister, conditionPrefix string) (*routev1.Route, []operatorv1.OperatorCondition) {
-	route, err := routeLister.Routes("openshift-authentication").Get("oauth-openshift")
+func GetOAuthServerRoute(ctx context.Context, routeLister routev1lister.RouteLister, conditionPrefix string) (*routev1.Route, []operatorv1.OperatorCondition) {
+	route, err := routeLister.Routes("openshift-authentication").Get(ctx, "oauth-openshift")
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, []operatorv1.OperatorCondition{{

@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -39,8 +40,8 @@ func NewAuthConfigChecker(authentications configv1informers.AuthenticationInform
 	}
 }
 
-func (c *AuthConfigChecker) AuthConfig() (*configv1.Authentication, error) {
-	return c.authLister.Get("cluster")
+func (c *AuthConfigChecker) AuthConfig(ctx context.Context) (*configv1.Authentication, error) {
+	return c.authLister.Get(ctx, "cluster")
 }
 
 func AuthConfigCheckerInformers[T factory.Informer](c *AuthConfigChecker) []T {
@@ -55,14 +56,14 @@ func AuthConfigCheckerInformers[T factory.Informer](c *AuthConfigChecker) []T {
 // rollout status; it returns true if auth type is OIDC, all KAS pods are currently on a revision
 // that includes the structured auth-config ConfigMap, and the KAS args include the respective
 // arg that enables usage of the structured auth-config. It returns false otherwise.
-func (c *AuthConfigChecker) OIDCAvailable() (bool, error) {
-	if auth, err := c.authLister.Get("cluster"); err != nil {
+func (c *AuthConfigChecker) OIDCAvailable(ctx context.Context) (bool, error) {
+	if auth, err := c.authLister.Get(ctx, "cluster"); err != nil {
 		return false, fmt.Errorf("getting authentications.config.openshift.io/cluster: %v", err)
 	} else if auth.Spec.Type != configv1.AuthenticationTypeOIDC {
 		return false, nil
 	}
 
-	kas, err := c.kasLister.Get("cluster")
+	kas, err := c.kasLister.Get(ctx, "cluster")
 	if err != nil {
 		return false, fmt.Errorf("getting kubeapiservers.operator.openshift.io/cluster: %v", err)
 	}
@@ -78,7 +79,7 @@ func (c *AuthConfigChecker) OIDCAvailable() (bool, error) {
 
 	for _, revision := range observedRevisions.UnsortedList() {
 		// ensure every observed revision includes an auth-config revisioned configmap
-		_, err := c.kasConfigMapLister.ConfigMaps("openshift-kube-apiserver").Get(fmt.Sprintf("auth-config-%d", revision))
+		_, err := c.kasConfigMapLister.ConfigMaps("openshift-kube-apiserver").Get(ctx, fmt.Sprintf("auth-config-%d", revision))
 		if errors.IsNotFound(err) {
 			return false, nil
 		} else if err != nil {
@@ -86,7 +87,7 @@ func (c *AuthConfigChecker) OIDCAvailable() (bool, error) {
 		}
 
 		// every observed revision includes a copy of the KAS config configmap
-		cm, err := c.kasConfigMapLister.ConfigMaps("openshift-kube-apiserver").Get(fmt.Sprintf("config-%d", revision))
+		cm, err := c.kasConfigMapLister.ConfigMaps("openshift-kube-apiserver").Get(ctx, fmt.Sprintf("config-%d", revision))
 		if err != nil {
 			return false, fmt.Errorf("getting configmap openshift-kube-apiserver/config-%d: %v", revision, err)
 		}

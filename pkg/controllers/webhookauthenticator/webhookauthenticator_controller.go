@@ -106,7 +106,7 @@ func NewWebhookAuthenticatorController(
 }
 
 func (c *webhookAuthenticatorController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
-	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(); err != nil {
+	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {
 		if err := c.removeOperands(ctx); err != nil {
@@ -140,7 +140,7 @@ func (c *webhookAuthenticatorController) sync(ctx context.Context, syncCtx facto
 		return nil
 	}
 
-	oauthAPIsvc, err := c.svcLister.Services("openshift-oauth-apiserver").Get("api")
+	oauthAPIsvc, err := c.svcLister.Services("openshift-oauth-apiserver").Get(ctx, "api")
 	if err != nil {
 		return fmt.Errorf("failed to retrieve service openshift-oauth-apiserver/api: %w", err)
 	}
@@ -243,7 +243,7 @@ func (c *webhookAuthenticatorController) getAuthenticatorCertKeyPair(ctx context
 		}
 	}()
 
-	certSecret, err := c.secretsLister.Secrets("openshift-oauth-apiserver").Get("openshift-authenticator-certs")
+	certSecret, err := c.secretsLister.Secrets("openshift-oauth-apiserver").Get(ctx, "openshift-authenticator-certs")
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			waitingForCertKeyMsg = ptr.To("waiting for the cert/key secret openshift-oauth-apiserver/openshift-authenticator-certs to appear")
@@ -270,7 +270,7 @@ func (c *webhookAuthenticatorController) getAuthenticatorCertKeyPair(ctx context
 }
 
 func (c *webhookAuthenticatorController) removeOperands(ctx context.Context) error {
-	_, err := c.configNSSecretsLister.Secrets(configNamespace).Get(webhookSecretName)
+	_, err := c.configNSSecretsLister.Secrets(configNamespace).Get(ctx, webhookSecretName)
 	if errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {

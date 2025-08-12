@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"fmt"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -9,8 +10,8 @@ import (
 )
 
 // GetAuthConfig retrieves the authentication config or return degraded condition if an error occurred.
-func GetAuthConfig(authLister configv1lister.AuthenticationLister, conditionPrefix string) (*configv1.Authentication, []operatorv1.OperatorCondition) {
-	operatorConfig, err := authLister.Get("cluster")
+func GetAuthConfig(ctx context.Context, authLister configv1lister.AuthenticationLister, conditionPrefix string) (*configv1.Authentication, []operatorv1.OperatorCondition) {
+	operatorConfig, err := authLister.Get(ctx, "cluster")
 	if err != nil {
 		return nil, []operatorv1.OperatorCondition{
 			{

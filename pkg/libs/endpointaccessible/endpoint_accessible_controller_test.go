@@ -51,14 +51,14 @@ func Test_endpointAccessibleController_sync(t *testing.T) {
 		},
 		{
 			name: "endpoint check disabled",
-			endpointCheckDisabledFunc: func() (bool, error) {
+			endpointCheckDisabledFunc: func(ctx context.Context) (bool, error) {
 				return true, nil
 			},
 			wantErr: false,
 		},
 		{
 			name: "endpoint check disabled func returns error",
-			endpointCheckDisabledFunc: func() (bool, error) {
+			endpointCheckDisabledFunc: func(ctx context.Context) (bool, error) {
 				return false, fmt.Errorf("fake error")
 			},
 			wantErr: true,

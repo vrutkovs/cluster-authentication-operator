@@ -90,7 +90,7 @@ func TestObserveTemplates(t *testing.T) {
 				ConfigMapLister: corelistersv1.NewConfigMapLister(indexer),
 				ResourceSync:    &mockResourceSyncer{t: t, synced: syncerData},
 			}
-			got, errs := ObserveTemplates(listers, events.NewInMemoryRecorder(t.Name(), clocktesting.NewFakePassiveClock(time.Now())), tt.previouslyObservedConfig)
+			got, errs := ObserveTemplates(t.Context(), listers, events.NewInMemoryRecorder(t.Name(), clocktesting.NewFakePassiveClock(time.Now())), tt.previouslyObservedConfig)
 			if len(errs) > 0 {
 				t.Errorf("Expected 0 errors, got %v.", len(errs))
 			}

@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -23,12 +24,12 @@ func TransportFor(serverName string, caData, certData, keyData []byte) (http.Rou
 	return ktransport.DebugWrappers(transport), nil
 }
 
-func TransportForCARef(cmLister corelistersv1.ConfigMapLister, caConfigMapName, key string) (http.RoundTripper, error) {
+func TransportForCARef(ctx context.Context, cmLister corelistersv1.ConfigMapLister, caConfigMapName, key string) (http.RoundTripper, error) {
 	if len(caConfigMapName) == 0 {
 		return TransportFor("", nil, nil, nil)
 	}
 
-	cm, err := cmLister.ConfigMaps("openshift-config").Get(caConfigMapName)
+	cm, err := cmLister.ConfigMaps("openshift-config").Get(ctx, caConfigMapName)
 	if err != nil {
 		return nil, err
 	}

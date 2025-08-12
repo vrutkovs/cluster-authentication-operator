@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -18,7 +19,7 @@ import (
 	"github.com/openshift/cluster-authentication-operator/pkg/operator/datasync"
 )
 
-func ObserveTemplates(genericlisters configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
+func ObserveTemplates(ctx context.Context, genericlisters configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
 	templatesPath := []string{"oauthConfig", "templates"}
 	defer func() {
 		ret = configobserver.Pruned(ret, templatesPath)
@@ -33,7 +34,7 @@ func ObserveTemplates(genericlisters configobserver.Listers, recorder events.Rec
 	}
 
 	observedConfig := map[string]interface{}{}
-	oauthConfig, err := listers.OAuthLister().Get("cluster")
+	oauthConfig, err := listers.OAuthLister().Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
 		// use the defauls for the platform set by `convertTemplatesWithBranding`
 		oauthConfig = &configv1.OAuth{}
@@ -41,7 +42,7 @@ func ObserveTemplates(genericlisters configobserver.Listers, recorder events.Rec
 		return existingConfig, append(errs, err)
 	}
 
-	templates, syncData, err := convertTemplatesWithBranding(listers.ConfigMapLister, &oauthConfig.Spec.Templates)
+	templates, syncData, err := convertTemplatesWithBranding(ctx, listers.ConfigMapLister, &oauthConfig.Spec.Templates)
 	if err != nil {
 		return existingConfig, append(errs, err)
 	}

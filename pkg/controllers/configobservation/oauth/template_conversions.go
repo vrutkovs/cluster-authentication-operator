@@ -1,6 +1,7 @@
 package oauth
 
 import (
+	"context"
 	"fmt"
 
 	"gopkg.in/yaml.v2"
@@ -29,7 +30,7 @@ type Customization struct {
 
 // ----- end of copy -----
 
-func convertTemplatesWithBranding(cmLister corelistersv1.ConfigMapLister, configTemplates *configv1.OAuthTemplates) (*osinv1.OAuthTemplates, map[string]string, error) {
+func convertTemplatesWithBranding(ctx context.Context, cmLister corelistersv1.ConfigMapLister, configTemplates *configv1.OAuthTemplates) (*osinv1.OAuthTemplates, map[string]string, error) {
 	templates := osinv1.OAuthTemplates{}
 	templateSyncData := map[string]string{}
 
@@ -39,7 +40,7 @@ func convertTemplatesWithBranding(cmLister corelistersv1.ConfigMapLister, config
 		Error:             "/var/config/system/secrets/v4-0-config-system-ocp-branding-template/errors.html",
 	}
 
-	brand, err := getConsoleBranding(cmLister)
+	brand, err := getConsoleBranding(ctx, cmLister)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -81,8 +82,8 @@ func convertTemplatesWithBranding(cmLister corelistersv1.ConfigMapLister, config
 	return &templates, templateSyncData, nil
 }
 
-func getConsoleBranding(cmLister corelistersv1.ConfigMapLister) (string, error) {
-	cm, err := cmLister.ConfigMaps("openshift-config-managed").Get("console-config")
+func getConsoleBranding(ctx context.Context, cmLister corelistersv1.ConfigMapLister) (string, error) {
+	cm, err := cmLister.ConfigMaps("openshift-config-managed").Get(ctx, "console-config")
 	if errors.IsNotFound(err) {
 		return "", nil
 	}

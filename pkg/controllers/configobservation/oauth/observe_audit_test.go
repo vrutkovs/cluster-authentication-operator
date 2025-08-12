@@ -122,7 +122,7 @@ func TestAuditProfile(t *testing.T) {
 				APIServerLister_: configlistersv1.NewAPIServerLister(indexer),
 			}
 
-			have, errs := oauth.ObserveAudit(listers, events.NewInMemoryRecorder(t.Name(), clocktesting.NewFakePassiveClock(time.Now())), tt.previouslyObservedConfig)
+			have, errs := oauth.ObserveAudit(t.Context(), listers, events.NewInMemoryRecorder(t.Name(), clocktesting.NewFakePassiveClock(time.Now())), tt.previouslyObservedConfig)
 			if len(errs) > 0 {
 				t.Errorf("Expected 0 errors, have %v.", len(errs))
 			}

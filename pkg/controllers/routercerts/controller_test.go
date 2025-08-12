@@ -270,7 +270,7 @@ func TestValidateRouterCertificates(t *testing.T) {
 			}
 			err = controller.sync(context.TODO(), factory.NewSyncContext("testctx", events.NewInMemoryRecorder("test-recorder", clocktesting.NewFakePassiveClock(time.Now()))))
 			require.NoError(t, err)
-			_, s, _, _ := operatorClient.GetOperatorState()
+			_, s, _, _ := operatorClient.GetOperatorState(t.Context())
 			require.Len(t, s.Conditions, 1)
 			condition := s.Conditions[0]
 			require.Equal(t, "RouterCertsDegraded", condition.Type, mergepatch.ToYAMLOrError(s))

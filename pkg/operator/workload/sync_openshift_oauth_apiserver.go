@@ -86,7 +86,7 @@ func NewOAuthAPIServerWorkload(
 }
 
 func (c *OAuthAPIServerWorkload) WorkloadDeleted(ctx context.Context) (bool, string, error) {
-	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(); err != nil {
+	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return false, "", err
 	} else if !oidcAvailable {
 		return false, "", nil
@@ -95,7 +95,7 @@ func (c *OAuthAPIServerWorkload) WorkloadDeleted(ctx context.Context) (bool, str
 	// OIDC has been configured and rolled out; delete deployment if it exists
 
 	deployment := resourceread.ReadDeploymentV1OrDie(bindata.MustAsset("oauth-apiserver/deploy.yaml"))
-	if _, err := c.deploymentsLister.Deployments(deployment.Namespace).Get(deployment.Name); errors.IsNotFound(err) {
+	if _, err := c.deploymentsLister.Deployments(deployment.Namespace).Get(ctx, deployment.Name); errors.IsNotFound(err) {
 		return true, deployment.Name, nil
 	} else if err != nil {
 		return false, "", err
@@ -110,7 +110,7 @@ func (c *OAuthAPIServerWorkload) WorkloadDeleted(ctx context.Context) (bool, str
 
 // PreconditionFulfilled is a function that indicates whether all prerequisites are met and we can Sync.
 func (c *OAuthAPIServerWorkload) PreconditionFulfilled(ctx context.Context) (bool, error) {
-	operatorSpec, operatorStatus, _, err := c.operatorClient.GetOperatorState()
+	operatorSpec, operatorStatus, _, err := c.operatorClient.GetOperatorState(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -152,7 +152,7 @@ func (c *OAuthAPIServerWorkload) preconditionFulfilledInternal(operatorSpec *ope
 func (c *OAuthAPIServerWorkload) Sync(ctx context.Context, syncCtx factory.SyncContext) (*appsv1.Deployment, bool, []error) {
 	errs := []error{}
 
-	operatorSpec, operatorStatus, _, err := c.operatorClient.GetOperatorState()
+	operatorSpec, operatorStatus, _, err := c.operatorClient.GetOperatorState(ctx)
 	if err != nil {
 		errs = append(errs, err)
 		return nil, false, errs

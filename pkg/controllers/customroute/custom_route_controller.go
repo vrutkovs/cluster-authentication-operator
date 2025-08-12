@@ -103,21 +103,21 @@ func NewCustomRouteController(
 }
 
 func (c *customRouteController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
-	ingressConfig, err := c.ingressLister.Get("cluster")
+	ingressConfig, err := c.ingressLister.Get(ctx, "cluster")
 	if err != nil {
 		return err
 	}
 
 	ingressConfigCopy := ingressConfig.DeepCopy()
 
-	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(); err != nil {
+	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {
 		return c.removeOperands(ctx, ingressConfigCopy)
 	}
 
 	// configure the expected route
-	expectedRoute, secretName, errors := c.getOAuthRouteAndSecretName(ingressConfigCopy)
+	expectedRoute, secretName, errors := c.getOAuthRouteAndSecretName(ctx, ingressConfigCopy)
 	if errors != nil {
 		// log if there is an issue updating the ingressConfig resource
 		if updateIngressConfigErr := c.updateIngressConfigStatus(ctx, ingressConfigCopy, errors); updateIngressConfigErr != nil {
@@ -140,7 +140,7 @@ func (c *customRouteController) sync(ctx context.Context, syncCtx factory.SyncCo
 	return c.syncSecret(secretName)
 }
 
-func (c *customRouteController) getOAuthRouteAndSecretName(ingressConfig *configv1.Ingress) (*routev1.Route, string, []error) {
+func (c *customRouteController) getOAuthRouteAndSecretName(ctx context.Context, ingressConfig *configv1.Ingress) (*routev1.Route, string, []error) {
 	route := resourceread.ReadRouteV1OrDie(bindata.MustAsset("oauth-openshift/route.yaml"))
 	// set defaults
 	route.Spec.Host = "oauth-openshift." + ingressConfig.Spec.Domain // mimic the behavior of subdomain
@@ -151,7 +151,7 @@ func (c *customRouteController) getOAuthRouteAndSecretName(ingressConfig *config
 		var errors []error
 		// Check if the provided secret is valid
 		secretName = componentRoute.ServingCertKeyPairSecret.Name
-		if err := c.validateCustomTLSSecret(secretName); err != nil {
+		if err := c.validateCustomTLSSecret(ctx, secretName); err != nil {
 			errors = append(errors, err)
 		}
 
@@ -171,9 +171,9 @@ func (c *customRouteController) getOAuthRouteAndSecretName(ingressConfig *config
 	return route, secretName, nil
 }
 
-func (c *customRouteController) validateCustomTLSSecret(secretName string) error {
+func (c *customRouteController) validateCustomTLSSecret(ctx context.Context, secretName string) error {
 	if secretName != "" {
-		secret, err := c.secretLister.Secrets("openshift-config").Get(secretName)
+		secret, err := c.secretLister.Secrets("openshift-config").Get(ctx, secretName)
 		if err != nil {
 			return err
 		}
@@ -230,7 +230,7 @@ func (c *customRouteController) applyRoute(ctx context.Context, expectedRoute *r
 
 func (c *customRouteController) updateIngressConfigStatus(ctx context.Context, ingressConfig *configv1.Ingress, customRouteErrors []error) error {
 	// update ingressConfig status
-	route, err := c.routeLister.Routes("openshift-authentication").Get("oauth-openshift")
+	route, err := c.routeLister.Routes("openshift-authentication").Get(ctx, "oauth-openshift")
 	if err != nil {
 		return err
 	}
@@ -253,7 +253,7 @@ func (c *customRouteController) updateIngressConfigStatus(ctx context.Context, i
 	if newConditions == nil {
 		newConditions = checkIngressURI(ingressConfig, route)
 		if newConditions == nil {
-			newConditions = checkRouteAvailablity(c.secretLister, ingressConfig, route)
+			newConditions = checkRouteAvailablity(ctx, c.secretLister, ingressConfig, route)
 		}
 	}
 	newConditions = ensureDefaultConditions(newConditions)
@@ -301,7 +301,7 @@ func (c *customRouteController) getFieldManager() string {
 }
 
 func (c *customRouteController) removeOperands(ctx context.Context, ingressConfig *configv1.Ingress) error {
-	if _, err := c.routeLister.Routes(c.componentRoute.Namespace).Get(c.componentRoute.Name); err != nil && !errors.IsNotFound(err) {
+	if _, err := c.routeLister.Routes(c.componentRoute.Namespace).Get(ctx, c.componentRoute.Name); err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("getting route %s/%s: %v", c.componentRoute.Namespace, c.componentRoute.Name, err)
 	} else if !errors.IsNotFound(err) {
 		if err := c.routeClient.Delete(ctx, c.componentRoute.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {

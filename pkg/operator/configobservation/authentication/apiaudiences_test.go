@@ -90,6 +90,7 @@ func TestObservedConfig(t *testing.T) {
 			}
 
 			newConfig, errs := ObserveAPIAudiences(
+				t.Context(),
 				listers,
 				testRecorder,
 				apiConfigForIssuer(tc.existingIssuer),

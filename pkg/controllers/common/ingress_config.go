@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -12,8 +13,8 @@ import (
 	configv1lister "github.com/openshift/client-go/config/listers/config/v1"
 )
 
-func GetIngressConfig(ingressLister configv1lister.IngressLister, conditionPrefix string) (*configv1.Ingress, []operatorv1.OperatorCondition) {
-	ingress, err := ingressLister.Get("cluster")
+func GetIngressConfig(ctx context.Context, ingressLister configv1lister.IngressLister, conditionPrefix string) (*configv1.Ingress, []operatorv1.OperatorCondition) {
+	ingress, err := ingressLister.Get(ctx, "cluster")
 	if err != nil {
 		return nil, []operatorv1.OperatorCondition{{
 			Type:    conditionPrefix + "Degraded",
@@ -71,8 +72,8 @@ func GetCustomRouteHostname(ingress *configv1.Ingress, namespace string, name st
 // GetActiveRouterCertKeyBytes returns a byte array containing the server certificates, a byte array containing the private key,
 // a boolean representing if the default openshift-authentication/v4-0-config-system-router-certs secret is being used, and
 // any errors retrieving the active router secret.
-func GetActiveRouterCertKeyBytes(secretLister corev1listers.SecretLister, ingressConfig *configv1.Ingress, namespace string, defaultSecretName string, customSecretName string) ([]byte, []byte, bool, error) {
-	secret, err := GetActiveRouterSecret(secretLister, namespace, defaultSecretName, customSecretName)
+func GetActiveRouterCertKeyBytes(ctx context.Context, secretLister corev1listers.SecretLister, ingressConfig *configv1.Ingress, namespace string, defaultSecretName string, customSecretName string) ([]byte, []byte, bool, error) {
+	secret, err := GetActiveRouterSecret(ctx, secretLister, namespace, defaultSecretName, customSecretName)
 	if err != nil {
 		return nil, nil, false, err
 	}
@@ -94,15 +95,15 @@ func GetActiveRouterCertKeyBytes(secretLister corev1listers.SecretLister, ingres
 // GetActiveRouterSecret returns the secret that contains the serving certificates for the openshift-authentication/oauth-openshift
 // route, a boolean representing if the default openshift-authentication/v4-0-config-system-router-certs secret is being used, and
 // any errors in retrieving the active secret.
-func GetActiveRouterSecret(secretLister corev1listers.SecretLister, namespace string, defaultSecretName string, customSecretName string) (*corev1.Secret, error) {
-	secret, err := secretLister.Secrets(namespace).Get(customSecretName)
+func GetActiveRouterSecret(ctx context.Context, secretLister corev1listers.SecretLister, namespace string, defaultSecretName string, customSecretName string) (*corev1.Secret, error) {
+	secret, err := secretLister.Secrets(namespace).Get(ctx, customSecretName)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return nil, err
 		}
 
 		// Custom serving certificate secret does not exist, use default secret instead
-		secret, err = secretLister.Secrets(namespace).Get(defaultSecretName)
+		secret, err = secretLister.Secrets(namespace).Get(ctx, defaultSecretName)
 		if err != nil {
 			return nil, err
 		}

@@ -78,7 +78,7 @@ HOZ5Dsbrjl60/qaXpg5uB0ZqDm7yhI44k3C5LYdJIg==
 			}
 			secretsLister := corev1listers.NewSecretLister(indexer)
 
-			got := validateSecret(secretsLister, tt.src)
+			got := validateSecret(t.Context(), secretsLister, tt.src)
 			gotAggr := errors.NewAggregate(got)
 			wantAggr := errors.NewAggregate(tt.want)
 			if gotAggr != nil && wantAggr != nil {
@@ -316,7 +316,7 @@ CazhEVmpFyKMwdD2nMNBGqSq3B6ph3jAvKHvdw==
 			}
 			configMapsLister := corev1listers.NewConfigMapLister(indexer)
 
-			got := validateConfigMap(configMapsLister, tt.src)
+			got := validateConfigMap(t.Context(), configMapsLister, tt.src)
 			gotAggr := errors.NewAggregate(got)
 			wantAggr := errors.NewAggregate(tt.want)
 			if gotAggr != nil && wantAggr != nil {

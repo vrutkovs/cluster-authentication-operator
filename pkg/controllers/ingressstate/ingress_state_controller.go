@@ -80,7 +80,7 @@ func (c *ingressStateController) checkPodStatus(ctx context.Context, reference *
 }
 
 func (c *ingressStateController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
-	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(); err != nil {
+	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {
 		// Server-Side-Apply with an empty operator status for the specific field manager
@@ -89,7 +89,7 @@ func (c *ingressStateController) sync(ctx context.Context, syncCtx factory.SyncC
 		return c.operatorClient.ApplyOperatorStatus(ctx, c.controllerInstanceName, applyoperatorv1.OperatorStatus())
 	}
 
-	endpoints, err := c.endpointsGetter.Endpoints(c.targetNamespace).Get(context.TODO(), "oauth-openshift", metav1.GetOptions{})
+	endpoints, err := c.endpointsGetter.Endpoints(c.targetNamespace).Get(ctx, "oauth-openshift", metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
 		// Clear the error to allow checkSubset to report degraded because endpoints == nil
 		err = nil

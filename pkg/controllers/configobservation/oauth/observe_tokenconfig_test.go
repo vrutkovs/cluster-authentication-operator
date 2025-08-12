@@ -121,7 +121,7 @@ func TestObserveTokenConfig(t *testing.T) {
 			listers := configobservation.Listers{
 				OAuthLister_: configlistersv1.NewOAuthLister(indexer),
 			}
-			got, errs := ObserveTokenConfig(listers, events.NewInMemoryRecorder(t.Name(), clocktesting.NewFakePassiveClock(time.Now())), tt.previouslyObservedConfig)
+			got, errs := ObserveTokenConfig(t.Context(), listers, events.NewInMemoryRecorder(t.Name(), clocktesting.NewFakePassiveClock(time.Now())), tt.previouslyObservedConfig)
 			if len(errs) > 0 {
 				t.Errorf("Expected 0 errors, got %v.", len(errs))
 			}

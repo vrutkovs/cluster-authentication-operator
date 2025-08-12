@@ -703,7 +703,7 @@ func (tc *testClient) validateOAuthState(t *testing.T, ctx context.Context, requ
 		validationErrs = make([]error, 0)
 		validationErrs = append(validationErrs, validateOAuthResources(ctx, dynamicClient, requireMissing)...)
 		validationErrs = append(validationErrs, validateOAuthRoutes(ctx, tc.routeClient, tc.configClient, requireMissing)...)
-		validationErrs = append(validationErrs, validateOAuthControllerConditions(tc.operatorClient, requireMissing)...)
+		validationErrs = append(validationErrs, validateOAuthControllerConditions(t.Context(), tc.operatorClient, requireMissing)...)
 		return len(validationErrs) == 0, nil
 	})
 
@@ -789,7 +789,7 @@ func validateOAuthRoutes(ctx context.Context, routeClient routeclient.Interface,
 	return errs
 }
 
-func validateOAuthControllerConditions(operatorClient v1helpers.OperatorClient, requireMissing bool) []error {
+func validateOAuthControllerConditions(ctx context.Context, operatorClient v1helpers.OperatorClient, requireMissing bool) []error {
 	errs := make([]error, 0)
 	controllerConditionTypes := sets.New[string](
 		// endpointAccessibleController
@@ -823,7 +823,7 @@ func validateOAuthControllerConditions(operatorClient v1helpers.OperatorClient, 
 		"WellKnownReadyControllerProgressing",
 	)
 
-	_, operatorStatus, _, err := operatorClient.GetOperatorState()
+	_, operatorStatus, _, err := operatorClient.GetOperatorState(ctx)
 	if err != nil {
 		return append(errs, err)
 	}

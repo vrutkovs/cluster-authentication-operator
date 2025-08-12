@@ -1,6 +1,7 @@
 package oauth
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -30,6 +31,7 @@ var (
 )
 
 func ObserveAudit(
+	ctx context.Context,
 	genericListers configobserver.Listers,
 	recorder events.Recorder,
 	existingConfig map[string]interface{},
@@ -41,7 +43,7 @@ func ObserveAudit(
 	listers := genericListers.(configobservation.Listers)
 	var errs []error
 
-	apiServer, err := listers.APIServerLister().Get("cluster")
+	apiServer, err := listers.APIServerLister().Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
 		klog.Warning("config.openshift.io/v1/cluster: not found")
 	} else if err != nil {

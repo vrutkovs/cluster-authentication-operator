@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
@@ -25,6 +26,7 @@ var (
 // the default value if Authentication.Spec.ServiceAccountIssuer specifies a valid
 // non-empty value.
 func ObserveAPIAudiences(
+	ctx context.Context,
 	genericListers configobserver.Listers,
 	recorder events.Recorder,
 	existingConfig map[string]interface{},
@@ -61,7 +63,7 @@ func ObserveAPIAudiences(
 		existingAudience = existingAudiences[0]
 	}
 
-	authConfig, err := listers.AuthConfigLister().Get("cluster")
+	authConfig, err := listers.AuthConfigLister().Get(ctx, "cluster")
 	if apierrors.IsNotFound(err) {
 		klog.Warningf("authentications.config.openshift.io/cluster: not found")
 		// No issuer if the auth config is missing

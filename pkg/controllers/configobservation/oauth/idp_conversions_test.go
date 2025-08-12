@@ -210,7 +210,7 @@ func Test_convertProviderConfigToIDPData(t *testing.T) {
 				tt.providerConfig.OpenID.Issuer = server.URL
 			}
 
-			got, err := convertProviderConfigToIDPData(cmLister, secretLister, tt.providerConfig, syncData, 0)
+			got, err := convertProviderConfigToIDPData(t.Context(), cmLister, secretLister, tt.providerConfig, syncData, 0)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("convertProviderConfigToIDPData() error = %v, wantErr %v", err, tt.wantErr)
 				return

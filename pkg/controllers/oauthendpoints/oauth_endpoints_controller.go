@@ -1,6 +1,7 @@
 package oauthendpoints
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -29,6 +30,7 @@ import (
 
 // NewOAuthRouteCheckController returns a controller that checks the health of authentication route.
 func NewOAuthRouteCheckController(
+	ctx context.Context,
 	operatorClient v1helpers.OperatorClient,
 	kubeInformersForTargetNS informers.SharedInformerFactory,
 	kubeInformersForConfigManagedNS informers.SharedInformerFactory,
@@ -49,11 +51,11 @@ func NewOAuthRouteCheckController(
 	ingressInformer := ingressInformerAllNamespaces.Informer()
 
 	endpointListFunc := func() ([]string, error) {
-		return listOAuthRoutes(ingressLister, routeLister)
+		return listOAuthRoutes(ctx, ingressLister, routeLister)
 	}
 
 	getTLSConfigFunc := func() (*tls.Config, error) {
-		return getOAuthRouteTLSConfig(cmLister, secretLister, ingressLister, systemCABundle)
+		return getOAuthRouteTLSConfig(ctx, cmLister, secretLister, ingressLister, systemCABundle)
 	}
 
 	endpointCheckDisabledFunc := authConfigChecker.OIDCAvailable
@@ -73,17 +75,18 @@ func NewOAuthRouteCheckController(
 
 // NewOAuthServiceCheckController returns a controller that checks the health of authentication service.
 func NewOAuthServiceCheckController(
+	ctx context.Context,
 	operatorClient v1helpers.OperatorClient,
 	kubeInformersForTargetNS informers.SharedInformerFactory,
 	authConfigChecker common.AuthConfigChecker,
 	recorder events.Recorder,
 ) factory.Controller {
 	endpointsListFunc := func() ([]string, error) {
-		return listOAuthServices(kubeInformersForTargetNS.Core().V1().Services().Lister())
+		return listOAuthServices(ctx, kubeInformersForTargetNS.Core().V1().Services().Lister())
 	}
 
 	getTLSConfigFunc := func() (*tls.Config, error) {
-		return getOAuthEndpointTLSConfig(kubeInformersForTargetNS.Core().V1().ConfigMaps().Lister())
+		return getOAuthEndpointTLSConfig(ctx, kubeInformersForTargetNS.Core().V1().ConfigMaps().Lister())
 	}
 
 	endpointCheckDisabledFunc := authConfigChecker.OIDCAvailable
@@ -102,17 +105,18 @@ func NewOAuthServiceCheckController(
 // NewOAuthServiceEndpointsCheckController returns a controller that checks the health of authentication service
 // endpoints.
 func NewOAuthServiceEndpointsCheckController(
+	ctx context.Context,
 	operatorClient v1helpers.OperatorClient,
 	kubeInformersForTargetNS informers.SharedInformerFactory,
 	authConfigChecker common.AuthConfigChecker,
 	recorder events.Recorder,
 ) factory.Controller {
 	endpointsListFn := func() ([]string, error) {
-		return listOAuthServiceEndpoints(kubeInformersForTargetNS.Core().V1().Endpoints().Lister())
+		return listOAuthServiceEndpoints(ctx, kubeInformersForTargetNS.Core().V1().Endpoints().Lister())
 	}
 
 	getTLSConfigFunc := func() (*tls.Config, error) {
-		return getOAuthEndpointTLSConfig(kubeInformersForTargetNS.Core().V1().ConfigMaps().Lister())
+		return getOAuthEndpointTLSConfig(ctx, kubeInformersForTargetNS.Core().V1().ConfigMaps().Lister())
 	}
 
 	endpointCheckDisabledFunc := authConfigChecker.OIDCAvailable
@@ -128,9 +132,9 @@ func NewOAuthServiceEndpointsCheckController(
 		recorder)
 }
 
-func listOAuthServiceEndpoints(endpointsLister corev1listers.EndpointsLister) ([]string, error) {
+func listOAuthServiceEndpoints(ctx context.Context, endpointsLister corev1listers.EndpointsLister) ([]string, error) {
 	var results []string
-	endpoints, err := endpointsLister.Endpoints("openshift-authentication").Get("oauth-openshift")
+	endpoints, err := endpointsLister.Endpoints("openshift-authentication").Get(ctx, "oauth-openshift")
 	if err != nil {
 		return nil, err
 	}
@@ -147,9 +151,9 @@ func listOAuthServiceEndpoints(endpointsLister corev1listers.EndpointsLister) ([
 	return toHealthzURL(results), nil
 }
 
-func listOAuthServices(serviceLister corev1listers.ServiceLister) ([]string, error) {
+func listOAuthServices(ctx context.Context, serviceLister corev1listers.ServiceLister) ([]string, error) {
 	var results []string
-	service, err := serviceLister.Services("openshift-authentication").Get("oauth-openshift")
+	service, err := serviceLister.Services("openshift-authentication").Get(ctx, "oauth-openshift")
 	if err != nil {
 		return nil, err
 	}
@@ -163,14 +167,14 @@ func listOAuthServices(serviceLister corev1listers.ServiceLister) ([]string, err
 	return toHealthzURL(results), nil
 }
 
-func listOAuthRoutes(ingressConfigLister configv1lister.IngressLister, routeLister routev1listers.RouteLister) ([]string, error) {
+func listOAuthRoutes(ctx context.Context, ingressConfigLister configv1lister.IngressLister, routeLister routev1listers.RouteLister) ([]string, error) {
 	var results []string
-	ingressConfig, err := ingressConfigLister.Get("cluster")
+	ingressConfig, err := ingressConfigLister.Get(ctx, "cluster")
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve ingress from cache: %w", err)
 	}
 
-	route, err := routeLister.Routes("openshift-authentication").Get("oauth-openshift")
+	route, err := routeLister.Routes("openshift-authentication").Get(ctx, "oauth-openshift")
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve route from cache: %w", err)
 	}
@@ -212,14 +216,14 @@ func listOAuthRoutes(ingressConfigLister configv1lister.IngressLister, routeList
 	return toHealthzURL(results), nil
 }
 
-func getOAuthRouteTLSConfig(cmLister corev1listers.ConfigMapLister, secretLister corev1listers.SecretLister, ingressLister configv1lister.IngressLister, systemCABundle []byte) (*tls.Config, error) {
+func getOAuthRouteTLSConfig(ctx context.Context, cmLister corev1listers.ConfigMapLister, secretLister corev1listers.SecretLister, ingressLister configv1lister.IngressLister, systemCABundle []byte) (*tls.Config, error) {
 	// get default router CA cert cm
-	defaultIngressCertCM, err := cmLister.ConfigMaps("openshift-config-managed").Get("default-ingress-cert")
+	defaultIngressCertCM, err := cmLister.ConfigMaps("openshift-config-managed").Get(ctx, "default-ingress-cert")
 	if err != nil {
 		return nil, err
 	}
 
-	ingress, err := ingressLister.Get("cluster")
+	ingress, err := ingressLister.Get(ctx, "cluster")
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +231,7 @@ func getOAuthRouteTLSConfig(cmLister corev1listers.ConfigMapLister, secretLister
 		return nil, fmt.Errorf("ingress config domain cannot be empty")
 	}
 
-	certBytes, _, _, err := common.GetActiveRouterCertKeyBytes(secretLister, ingress, "openshift-authentication", "v4-0-config-system-router-certs", "v4-0-config-system-custom-router-certs")
+	certBytes, _, _, err := common.GetActiveRouterCertKeyBytes(ctx, secretLister, ingress, "openshift-authentication", "v4-0-config-system-router-certs", "v4-0-config-system-custom-router-certs")
 	if err != nil {
 		return nil, err
 	}
@@ -264,8 +268,8 @@ func getOAuthRouteTLSConfig(cmLister corev1listers.ConfigMapLister, secretLister
 	}, nil
 }
 
-func getOAuthEndpointTLSConfig(cmLister corev1listers.ConfigMapLister) (*tls.Config, error) {
-	serviceCACM, err := cmLister.ConfigMaps("openshift-authentication").Get("v4-0-config-system-service-ca")
+func getOAuthEndpointTLSConfig(ctx context.Context, cmLister corev1listers.ConfigMapLister) (*tls.Config, error) {
+	serviceCACM, err := cmLister.ConfigMaps("openshift-authentication").Get(ctx, "v4-0-config-system-service-ca")
 	if err != nil {
 		return nil, err
 	}

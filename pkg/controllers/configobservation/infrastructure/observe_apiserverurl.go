@@ -1,6 +1,7 @@
 package infrastructure
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 
@@ -12,7 +13,7 @@ import (
 	"github.com/openshift/cluster-authentication-operator/pkg/controllers/configobservation"
 )
 
-func ObserveAPIServerURL(genericlisters configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, _ []error) {
+func ObserveAPIServerURL(ctx context.Context, genericlisters configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, _ []error) {
 	loginURLPath := []string{"oauthConfig", "loginURL"}
 	defer func() {
 		ret = configobserver.Pruned(ret, loginURLPath)
@@ -20,7 +21,7 @@ func ObserveAPIServerURL(genericlisters configobserver.Listers, recorder events.
 	listers := genericlisters.(configobservation.Listers)
 	errs := []error{}
 
-	infrastructureConfig, err := listers.InfrastructureLister.Get("cluster")
+	infrastructureConfig, err := listers.InfrastructureLister.Get(ctx, "cluster")
 	if err != nil {
 		return existingConfig, append(errs, err)
 	}

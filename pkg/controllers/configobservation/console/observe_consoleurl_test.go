@@ -114,7 +114,7 @@ func TestObserveConsoleURL(t *testing.T) {
 			}
 
 			eventRecorder := events.NewInMemoryRecorder(tt.name, clocktesting.NewFakePassiveClock(time.Now()))
-			gotConfig, errs := ObserveConsoleURL(listers, eventRecorder, tt.existingConfig)
+			gotConfig, errs := ObserveConsoleURL(t.Context(), listers, eventRecorder, tt.existingConfig)
 			if !reflect.DeepEqual(gotConfig, tt.expectedConfig) {
 				t.Errorf("ObserveConsoleURL() gotConfig = %v, want %v", gotConfig, tt.expectedConfig)
 			}

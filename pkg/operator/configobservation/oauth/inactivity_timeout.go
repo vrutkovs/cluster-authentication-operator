@@ -1,6 +1,7 @@
 package oauth
 
 import (
+	"context"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -19,7 +20,7 @@ type OAuthLister interface {
 
 // ObserveAccessTokenInactivityTimeout returns an unstructured fragment of KubeAPIServerConfig that has access token inactivity timeout,
 // if there is a valid value for it in OAuth cluster config.
-func ObserveAccessTokenInactivityTimeout(genericlisters configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
+func ObserveAccessTokenInactivityTimeout(ctx context.Context, genericlisters configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
 	errs = []error{}
 	tokenInactivityTimeoutPath := []string{"apiServerArguments", "accesstoken-inactivity-timeout"}
 	defer func() {
@@ -32,7 +33,7 @@ func ObserveAccessTokenInactivityTimeout(genericlisters configobserver.Listers, 
 		return existingConfig, append(errs, fmt.Errorf("failed to assert: given lister does not implement OAuth lister"))
 	}
 
-	oauthConfig, err := listers.OAuthLister().Get("cluster")
+	oauthConfig, err := listers.OAuthLister().Get(ctx, "cluster")
 	if err != nil {
 		// Failed to read OAuth cluster config.
 		if errors.IsNotFound(err) {

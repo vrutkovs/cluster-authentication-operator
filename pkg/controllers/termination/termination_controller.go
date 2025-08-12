@@ -40,7 +40,7 @@ func (c *terminationController) sync(ctx context.Context, syncCtx factory.SyncCo
 	// check the ClusterVersion object to see if the console is currently enabled.
 	// Since this controller only runs when the console capability is disabled at operator startup time
 	// it is safe to conclude that if it sees the console enabled, it must restart the operator.
-	enabled, err := isConsoleCapabilityEnabled(c.clusterVersionLister, c.recorder)
+	enabled, err := isConsoleCapabilityEnabled(ctx, c.clusterVersionLister, c.recorder)
 	if err != nil {
 		klog.Errorf("Error checking if console capability is enabled: %v", err)
 		return err
@@ -55,8 +55,8 @@ func (c *terminationController) sync(ctx context.Context, syncCtx factory.SyncCo
 	return err
 }
 
-func isConsoleCapabilityEnabled(clusterVersions configlistersv1.ClusterVersionLister, recorder events.Recorder) (bool, error) {
-	clusterVersionConfig, err := clusterVersions.Get("version")
+func isConsoleCapabilityEnabled(ctx context.Context, clusterVersions configlistersv1.ClusterVersionLister, recorder events.Recorder) (bool, error) {
+	clusterVersionConfig, err := clusterVersions.Get(ctx, "version")
 	if err != nil {
 		return false, err
 	}

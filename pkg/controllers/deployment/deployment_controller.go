@@ -145,7 +145,7 @@ func NewOAuthServerWorkloadController(
 }
 
 func (c *oauthServerDeploymentSyncer) WorkloadDeleted(ctx context.Context) (bool, string, error) {
-	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(); err != nil {
+	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return false, "", fmt.Errorf("failed to check workload deletion: %v", err)
 	} else if !oidcAvailable {
 		return false, "", nil
@@ -154,7 +154,7 @@ func (c *oauthServerDeploymentSyncer) WorkloadDeleted(ctx context.Context) (bool
 	// OIDC has been configured and rolled out; delete deployment if it exists
 
 	deployment := resourceread.ReadDeploymentV1OrDie(bindata.MustAsset("oauth-openshift/deployment.yaml"))
-	if _, err := c.deploymentsLister.Deployments(deployment.Namespace).Get(deployment.Name); errors.IsNotFound(err) {
+	if _, err := c.deploymentsLister.Deployments(deployment.Namespace).Get(ctx, deployment.Name); errors.IsNotFound(err) {
 		return true, deployment.Name, nil
 	} else if err != nil {
 		return false, "", fmt.Errorf("failed to retrieve deployment %s/%s for deletion: %v", deployment.Namespace, deployment.Name, err)
@@ -167,15 +167,15 @@ func (c *oauthServerDeploymentSyncer) WorkloadDeleted(ctx context.Context) (bool
 	return true, deployment.Name, nil
 }
 
-func (c *oauthServerDeploymentSyncer) PreconditionFulfilled(_ context.Context) (bool, error) {
-	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(); err != nil {
+func (c *oauthServerDeploymentSyncer) PreconditionFulfilled(ctx context.Context) (bool, error) {
+	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return false, fmt.Errorf("checking if authentication mode is OIDC: %v", err)
 	} else if oidcAvailable {
 		// the route is no longer a pre-requisite
 		return true, nil
 	}
 
-	route, err := c.routeLister.Routes("openshift-authentication").Get("oauth-openshift")
+	route, err := c.routeLister.Routes("openshift-authentication").Get(ctx, "oauth-openshift")
 	if err != nil {
 		return false, fmt.Errorf("waiting for the oauth-openshift route to appear: %w", err)
 	}
@@ -190,12 +190,12 @@ func (c *oauthServerDeploymentSyncer) PreconditionFulfilled(_ context.Context) (
 func (c *oauthServerDeploymentSyncer) Sync(ctx context.Context, syncContext factory.SyncContext) (*appsv1.Deployment, bool, []error) {
 	errs := []error{}
 
-	operatorSpec, operatorStatus, _, err := c.operatorClient.GetOperatorState()
+	operatorSpec, operatorStatus, _, err := c.operatorClient.GetOperatorState(ctx)
 	if err != nil {
 		return nil, false, append(errs, err)
 	}
 
-	proxyConfig, err := c.getProxyConfig()
+	proxyConfig, err := c.getProxyConfig(ctx)
 	if err != nil {
 		return nil, false, append(errs, err)
 	}
@@ -212,7 +212,7 @@ func (c *oauthServerDeploymentSyncer) Sync(ctx context.Context, syncContext fact
 		resourceVersions = append(resourceVersions, "proxy:"+proxyConfig.Name+":"+proxyConfig.ResourceVersion)
 	}
 
-	configResourceVersions, err := c.getConfigResourceVersions()
+	configResourceVersions, err := c.getConfigResourceVersions(ctx)
 	if err != nil {
 		return nil, false, append(errs, err)
 	}
@@ -235,7 +235,7 @@ func (c *oauthServerDeploymentSyncer) Sync(ctx context.Context, syncContext fact
 		return nil, false, append(errs, err)
 	}
 
-	if _, err := c.secretLister.Secrets("openshift-authentication").Get("v4-0-config-system-custom-router-certs"); err == nil {
+	if _, err := c.secretLister.Secrets("openshift-authentication").Get(ctx, "v4-0-config-system-custom-router-certs"); err == nil {
 		expectedDeployment.Spec.Template.Spec.Volumes = append(expectedDeployment.Spec.Template.Spec.Volumes, corev1.Volume{
 			Name: "v4-0-config-system-custom-router-certs",
 			VolumeSource: corev1.VolumeSource{
@@ -275,8 +275,8 @@ func (c *oauthServerDeploymentSyncer) Sync(ctx context.Context, syncContext fact
 	return deployment, true, errs
 }
 
-func (c *oauthServerDeploymentSyncer) getProxyConfig() (*configv1.Proxy, error) {
-	proxyConfig, err := c.proxyLister.Get("cluster")
+func (c *oauthServerDeploymentSyncer) getProxyConfig(ctx context.Context) (*configv1.Proxy, error) {
+	proxyConfig, err := c.proxyLister.Get(ctx, "cluster")
 	if err != nil {
 		if errors.IsNotFound(err) {
 			klog.V(4).Infof("No proxy configuration found, defaulting to empty")
@@ -287,10 +287,10 @@ func (c *oauthServerDeploymentSyncer) getProxyConfig() (*configv1.Proxy, error) 
 	return proxyConfig, nil
 }
 
-func (c *oauthServerDeploymentSyncer) getConfigResourceVersions() ([]string, error) {
+func (c *oauthServerDeploymentSyncer) getConfigResourceVersions(ctx context.Context) ([]string, error) {
 	var configRVs []string
 
-	configMaps, err := c.configMapLister.ConfigMaps("openshift-authentication").List(labels.Everything())
+	configMaps, err := c.configMapLister.ConfigMaps("openshift-authentication").List(ctx, labels.Everything())
 	if err != nil {
 		return nil, fmt.Errorf("unable to list configmaps in %q namespace: %v", "openshift-authentication", err)
 	}
@@ -301,7 +301,7 @@ func (c *oauthServerDeploymentSyncer) getConfigResourceVersions() ([]string, err
 		}
 	}
 
-	secrets, err := c.secretLister.Secrets("openshift-authentication").List(labels.Everything())
+	secrets, err := c.secretLister.Secrets("openshift-authentication").List(ctx, labels.Everything())
 	if err != nil {
 		return nil, fmt.Errorf("unable to list secrets in %q namespace: %v", "openshift-authentication", err)
 	}

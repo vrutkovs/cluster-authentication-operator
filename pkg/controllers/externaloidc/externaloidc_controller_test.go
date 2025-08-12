@@ -1071,7 +1071,7 @@ func TestExternalOIDCController_generateAuthConfig(t *testing.T) {
 				featureGates:    tt.featureGates,
 			}
 
-			gotConfig, err := c.generateAuthConfig(tt.auth)
+			gotConfig, err := c.generateAuthConfig(t.Context(), tt.auth)
 			if tt.expectError && err == nil {
 				t.Errorf("expected error but didn't get any")
 			}
@@ -1144,7 +1144,7 @@ func TestExternalOIDCController_getExistingApplyConfig(t *testing.T) {
 				configMapLister: corev1listers.NewConfigMapLister(tt.configMapIndexer),
 			}
 
-			ac, err := c.getExistingApplyConfig()
+			ac, err := c.getExistingApplyConfig(t.Context())
 
 			if tt.expectError != (err != nil) {
 				t.Errorf("expected error: %v; got %v", tt.expectError, err)

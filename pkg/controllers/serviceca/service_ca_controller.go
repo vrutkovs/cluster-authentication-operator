@@ -73,7 +73,7 @@ func NewServiceCAController(
 }
 
 func (c *serviceCAController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
-	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(); err != nil {
+	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {
 		if err := c.removeOperands(ctx); err != nil {
@@ -88,7 +88,7 @@ func (c *serviceCAController) sync(ctx context.Context, syncCtx factory.SyncCont
 
 	foundConditions := []operatorv1.OperatorCondition{}
 
-	_, serviceConditions := common.GetOAuthServerService(c.serviceLister, "OAuthService")
+	_, serviceConditions := common.GetOAuthServerService(ctx, c.serviceLister, "OAuthService")
 	foundConditions = append(foundConditions, serviceConditions...)
 
 	if len(foundConditions) == 0 {
@@ -153,7 +153,7 @@ func (c *serviceCAController) getServiceCA(ctx context.Context, recorder events.
 		return nil, factory.SyntheticRequeueError
 	}
 
-	if _, err = secret.Get("v4-0-config-system-serving-cert"); err != nil {
+	if _, err = secret.Get(ctx, "v4-0-config-system-serving-cert"); err != nil {
 		return []operatorv1.OperatorCondition{{
 			Type:    "SystemServiceCAConfigDegraded",
 			Status:  operatorv1.ConditionTrue,
@@ -166,7 +166,7 @@ func (c *serviceCAController) getServiceCA(ctx context.Context, recorder events.
 }
 
 func (c *serviceCAController) removeOperands(ctx context.Context) error {
-	if _, err := c.configMapLister.ConfigMaps("openshift-authentication").Get("v4-0-config-system-service-ca"); errors.IsNotFound(err) {
+	if _, err := c.configMapLister.ConfigMaps("openshift-authentication").Get(ctx, "v4-0-config-system-service-ca"); errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("getting configmap openshift-authentication/v4-0-config-system-service-ca: %v", err)

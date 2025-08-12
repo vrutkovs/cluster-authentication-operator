@@ -1,6 +1,7 @@
 package datasync
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -113,14 +114,14 @@ func (sd *ConfigSyncData) Bytes() ([]byte, error) {
 
 // Validate checks that the data to be synchronized is all present, has the required
 // fields, and performs additional validation of certificates and keys
-func (sd *ConfigSyncData) Validate(cmLister corelistersv1.ConfigMapLister, secretsLister corelistersv1.SecretLister) []error {
+func (sd *ConfigSyncData) Validate(ctx context.Context, cmLister corelistersv1.ConfigMapLister, secretsLister corelistersv1.SecretLister) []error {
 	errs := []error{}
 	for _, src := range sd.data {
 		if src.Type == SecretType {
-			if secretErrs := validateSecret(secretsLister, src); len(secretErrs) > 0 {
+			if secretErrs := validateSecret(ctx, secretsLister, src); len(secretErrs) > 0 {
 				errs = append(errs, fmt.Errorf("error validating secret openshift-config/%s: %w", src.Name, errors.NewAggregate(secretErrs)))
 			}
-		} else if cmErrs := validateConfigMap(cmLister, src); len(cmErrs) > 0 {
+		} else if cmErrs := validateConfigMap(ctx, cmLister, src); len(cmErrs) > 0 {
 			errs = append(errs, fmt.Errorf("error validating configMap openshift-config/%s: %w", src.Name, errors.NewAggregate(cmErrs)))
 		}
 	}

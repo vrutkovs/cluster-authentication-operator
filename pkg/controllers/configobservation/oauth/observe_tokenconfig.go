@@ -1,6 +1,8 @@
 package oauth
 
 import (
+	"context"
+
 	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -17,7 +19,7 @@ const (
 	defaultAuthorizeTokenMaxAgeSeconds = float64(300)   // 5 minutes
 )
 
-func ObserveTokenConfig(genericlisters configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
+func ObserveTokenConfig(ctx context.Context, genericlisters configobserver.Listers, recorder events.Recorder, existingConfig map[string]interface{}) (ret map[string]interface{}, errs []error) {
 	tokenConfigPath := []string{"oauthConfig", "tokenConfig"}
 	defer func() {
 		ret = configobserver.Pruned(ret, tokenConfigPath)
@@ -45,7 +47,7 @@ func ObserveTokenConfig(genericlisters configobserver.Listers, recorder events.R
 			"tokenConfig": observedTokenConfigFieldMap,
 		},
 	}
-	oauthConfig, err := listers.OAuthLister().Get("cluster")
+	oauthConfig, err := listers.OAuthLister().Get(ctx, "cluster")
 	if errors.IsNotFound(err) {
 		klog.Warning("oauth.config.openshift.io/cluster: not found")
 		return observedConfig, errs

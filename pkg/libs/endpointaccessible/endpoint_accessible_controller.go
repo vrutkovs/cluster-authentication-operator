@@ -31,7 +31,7 @@ type endpointAccessibleController struct {
 
 type EndpointListFunc func() ([]string, error)
 type EndpointTLSConfigFunc func() (*tls.Config, error)
-type EndpointCheckDisabledFunc func() (bool, error)
+type EndpointCheckDisabledFunc func(ctx context.Context) (bool, error)
 
 // NewEndpointAccessibleController returns a controller that checks if the endpoints
 // listed by endpointListFn are reachable
@@ -78,7 +78,7 @@ func humanizeError(err error) error {
 
 func (c *endpointAccessibleController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
 	if c.endpointCheckDisabledFunc != nil {
-		if skip, err := c.endpointCheckDisabledFunc(); err != nil {
+		if skip, err := c.endpointCheckDisabledFunc(ctx); err != nil {
 			return err
 		} else if skip {
 			// Server-Side-Apply with an empty operator status for the specific field manager

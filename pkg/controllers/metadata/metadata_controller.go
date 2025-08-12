@@ -91,7 +91,7 @@ func NewMetadataController(instanceName string,
 }
 
 func (c *metadataController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
-	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(); err != nil {
+	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {
 		if err := c.removeOperands(ctx); err != nil {
@@ -188,7 +188,7 @@ func (c *metadataController) handleAuthConfig(ctx context.Context) []operatorv1.
 }
 
 func (c *metadataController) removeOperands(ctx context.Context) error {
-	if _, err := c.configMapLister.ConfigMaps("openshift-authentication").Get("v4-0-config-system-metadata"); errors.IsNotFound(err) {
+	if _, err := c.configMapLister.ConfigMaps("openshift-authentication").Get(ctx, "v4-0-config-system-metadata"); errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
 		return err

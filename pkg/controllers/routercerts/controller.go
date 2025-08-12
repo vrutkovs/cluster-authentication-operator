@@ -99,7 +99,7 @@ func NewRouterCertsDomainValidationController(
 }
 
 func (c *routerCertsDomainValidationController) sync(ctx context.Context, syncCtx factory.SyncContext) (err error) {
-	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(); err != nil {
+	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {
 		// do not remove secret "v4-0-config-system-router-certs" as the ConfigObserver controller
@@ -111,11 +111,11 @@ func (c *routerCertsDomainValidationController) sync(ctx context.Context, syncCt
 		return c.operatorClient.ApplyOperatorStatus(ctx, c.controllerInstanceName, applyoperatorv1.OperatorStatus())
 	}
 
-	spec, _, _, err := c.operatorClient.GetOperatorState()
+	spec, _, _, err := c.operatorClient.GetOperatorState(ctx)
 	if err != nil {
 		return err
 	}
-	if !management.IsOperatorManaged(spec.ManagementState) {
+	if !management.IsOperatorManaged(ctx, spec.ManagementState) {
 		return nil
 	}
 
@@ -136,7 +136,7 @@ func (c *routerCertsDomainValidationController) sync(ctx context.Context, syncCt
 	}()
 
 	// get ingress
-	ingress, err := c.ingressLister.Get("cluster")
+	ingress, err := c.ingressLister.Get(ctx, "cluster")
 	if err != nil {
 		condition = newRouterCertsDegradedf("NoIngressConfig", "ingresses.config.openshift.io/cluster could not be retrieved: %v", err)
 		return nil
@@ -155,13 +155,13 @@ func (c *routerCertsDomainValidationController) sync(ctx context.Context, syncCt
 		return err
 	}
 
-	condition = c.validateRouterCertificates()
+	condition = c.validateRouterCertificates(ctx)
 	return nil
 }
 
-func (c *routerCertsDomainValidationController) validateRouterCertificates() operatorv1.OperatorCondition {
+func (c *routerCertsDomainValidationController) validateRouterCertificates(ctx context.Context) operatorv1.OperatorCondition {
 	// get ingress
-	ingress, err := c.ingressLister.Get("cluster")
+	ingress, err := c.ingressLister.Get(ctx, "cluster")
 	if err != nil {
 		return newRouterCertsDegradedf("NoIngressConfig", "ingresses.config.openshift.io/cluster could not be retrieved: %v", err)
 	}
@@ -173,7 +173,7 @@ func (c *routerCertsDomainValidationController) validateRouterCertificates() ope
 	}
 
 	// get router certs secret
-	secret, err := common.GetActiveRouterSecret(c.secretLister, c.secretNamespace, c.defaultSecretName, c.customSecretName)
+	secret, err := common.GetActiveRouterSecret(ctx, c.secretLister, c.secretNamespace, c.defaultSecretName, c.customSecretName)
 	if err != nil {
 		return newRouterCertsDegradedf("NoRouterCertSecret", "neither the custom secret/%v -n %v or default secret/%v -n %v could be retrieved: %v", c.defaultSecretName, c.secretNamespace, c.customSecretName, c.secretNamespace, err)
 	}
@@ -200,7 +200,7 @@ func (c *routerCertsDomainValidationController) validateRouterCertificates() ope
 	}
 
 	// get default router CA cert cm
-	cm, err := c.configMapLister.ConfigMaps("openshift-config-managed").Get("default-ingress-cert")
+	cm, err := c.configMapLister.ConfigMaps("openshift-config-managed").Get(ctx, "default-ingress-cert")
 	if err != nil {
 		return newRouterCertsDegradedf("NoDefaultIngressCAConfigMap", "failed to get configMap openshift-config-managed/default-ingress-cert: %v", err)
 	}

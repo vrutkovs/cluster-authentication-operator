@@ -182,7 +182,7 @@ func Test_getIngressConfig(t *testing.T) {
 				c.ingressLister = tt.withIngressLister
 			}
 
-			_, err := c.getIngressConfig()
+			_, err := c.getIngressConfig(t.Context())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("got error: %v; want error: %v", err, tt.wantErr)
 			}
@@ -216,7 +216,7 @@ func Test_getCanonicalRouteHost(t *testing.T) {
 				})
 			}
 
-			gotHost, err := c.getCanonicalRouteHost(tt.host)
+			gotHost, err := c.getCanonicalRouteHost(t.Context(), tt.host)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("got error: %v; want error: %v", err, tt.wantErr)
 			}
@@ -261,7 +261,7 @@ func Test_ensureBootstrappedOAuthClientsMissing(t *testing.T) {
 		t.Errorf("unexpected error while creating oauth clients: %v", err)
 	}
 
-	oauthClients, err := c.oauthClientLister.List(labels.Everything())
+	oauthClients, err := c.oauthClientLister.List(t.Context(), labels.Everything())
 	if err != nil {
 		t.Errorf("unexpected error while listing oauth clients: %v", err)
 	}
@@ -276,7 +276,7 @@ func Test_ensureBootstrappedOAuthClientsMissing(t *testing.T) {
 		t.Errorf("unexpected error while deleting oauth clients: %v", err)
 	}
 
-	oauthClients, err = c.oauthClientLister.List(labels.Everything())
+	oauthClients, err = c.oauthClientLister.List(t.Context(), labels.Everything())
 	if err != nil {
 		t.Errorf("unexpected error while listing oauth clients after deletion: %v", err)
 	}

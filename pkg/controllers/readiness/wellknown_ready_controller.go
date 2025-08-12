@@ -106,16 +106,16 @@ func NewWellKnownReadyController(
 }
 
 func (c *wellKnownReadyController) sync(ctx context.Context, controllerContext factory.SyncContext) error {
-	operatorSpec, operatorStatus, _, err := c.operatorClient.GetOperatorState()
+	operatorSpec, operatorStatus, _, err := c.operatorClient.GetOperatorState(ctx)
 	if err != nil {
 		return err
 	}
 
-	authConfig, err := c.authLister.Get("cluster")
+	authConfig, err := c.authLister.Get(ctx, "cluster")
 	if err != nil {
 		return err
 	}
-	infraConfig, err := c.infrastructureLister.Get("cluster")
+	infraConfig, err := c.infrastructureLister.Get(ctx, "cluster")
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (c *wellKnownReadyController) sync(ctx context.Context, controllerContext f
 		WithType(common.ControllerProgressingConditionName(controllerName))
 
 	// if OIDC is enabled, clear operator conditions and skip checks
-	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(); err != nil {
+	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {
 		// Server-Side-Apply with an empty operator status for the specific field manager
@@ -149,7 +149,7 @@ func (c *wellKnownReadyController) sync(ctx context.Context, controllerContext f
 	}()
 
 	// the well-known endpoint cannot be ready until we know the oauth-server's hostname
-	_, err = c.routeLister.Routes("openshift-authentication").Get("oauth-openshift")
+	_, err = c.routeLister.Routes("openshift-authentication").Get(ctx, "oauth-openshift")
 	if apierrors.IsNotFound(err) {
 		available = available.
 			WithStatus(operatorv1.ConditionFalse).
@@ -216,7 +216,7 @@ func (c *wellKnownReadyController) isWellknownEndpointsReady(ctx context.Context
 		return fmt.Errorf("failed to build transport for SA ca.crt: %v", err)
 	}
 
-	ips, err := c.getAPIServerIPs()
+	ips, err := c.getAPIServerIPs(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get API server IPs: %v (check kube-apiserver that it deploys correctly)", err)
 	}
@@ -249,7 +249,7 @@ func (c *wellKnownReadyController) isWellknownEndpointsReady(ctx context.Context
 }
 
 func (c *wellKnownReadyController) checkWellknownEndpointReady(ctx context.Context, apiIP string, rt http.RoundTripper) error {
-	expectedMetadata, err := c.getOAuthMetadata()
+	expectedMetadata, err := c.getOAuthMetadata(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get oauth metadata from openshift-config-managed/oauth-openshift ConfigMap: %w (check authentication operator, it is supposed to create this)", err)
 	}
@@ -328,8 +328,8 @@ func isConnectionRefusedError(err error) bool {
 	return strings.Contains(err.Error(), "connection refused")
 }
 
-func (c *wellKnownReadyController) getOAuthMetadata() (map[string]interface{}, error) {
-	cm, err := c.configMapLister.ConfigMaps("openshift-config-managed").Get("oauth-openshift")
+func (c *wellKnownReadyController) getOAuthMetadata(ctx context.Context) (map[string]interface{}, error) {
+	cm, err := c.configMapLister.ConfigMaps("openshift-config-managed").Get(ctx, "oauth-openshift")
 	if err != nil {
 		return nil, err
 	}
@@ -365,8 +365,8 @@ func subsetHasKASTargetPort(subset corev1.EndpointSubset, targetPort int) bool {
 	return false
 }
 
-func (c *wellKnownReadyController) getAPIServerIPs() ([]string, error) {
-	kasService, err := c.serviceLister.Services(corev1.NamespaceDefault).Get("kubernetes")
+func (c *wellKnownReadyController) getAPIServerIPs(ctx context.Context) ([]string, error) {
+	kasService, err := c.serviceLister.Services(corev1.NamespaceDefault).Get(ctx, "kubernetes")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get kube api server service: %v", err)
 	}
@@ -376,7 +376,7 @@ func (c *wellKnownReadyController) getAPIServerIPs() ([]string, error) {
 		return nil, fmt.Errorf("unable to find kube api server service target port: %#v", kasService)
 	}
 
-	kasEndpoint, err := c.endpointLister.Endpoints(corev1.NamespaceDefault).Get("kubernetes")
+	kasEndpoint, err := c.endpointLister.Endpoints(corev1.NamespaceDefault).Get(ctx, "kubernetes")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get kube api server endpointLister: %v", err)
 	}
