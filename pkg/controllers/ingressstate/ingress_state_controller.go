@@ -12,6 +12,7 @@ import (
 	"github.com/openshift/library-go/pkg/controller/factory"
 	"github.com/openshift/library-go/pkg/operator/events"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
+	"go.opentelemetry.io/otel"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -80,6 +81,10 @@ func (c *ingressStateController) checkPodStatus(ctx context.Context, reference *
 }
 
 func (c *ingressStateController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "cao.ingressStateController")
+	defer span.End()
+
 	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {

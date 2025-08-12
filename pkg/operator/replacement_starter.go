@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/utils/clock"
 
@@ -151,6 +152,10 @@ func CreateOperatorInputFromMOM(ctx context.Context, momInput libraryapplyconfig
 }
 
 func CreateControllerInputFromControllerContext(ctx context.Context, controllerContext *controllercmd.ControllerContext) (*authenticationOperatorInput, error) {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "cao.CreateControllerInputFromControllerContext")
+	defer span.End()
+
 	kubeClient, err := kubernetes.NewForConfig(controllerContext.ProtoKubeConfig)
 	if err != nil {
 		return nil, err

@@ -22,6 +22,7 @@ import (
 	"github.com/openshift/library-go/pkg/operator/events"
 	"github.com/openshift/library-go/pkg/operator/resource/retry"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
+	"go.opentelemetry.io/otel"
 	"golang.org/x/net/http/httpproxy"
 
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -87,6 +88,10 @@ func NewExternalOIDCController(
 }
 
 func (c *externalOIDCController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "cao.externalOIDCController")
+	defer span.End()
+
 	auth, err := c.authLister.Get(ctx, "cluster")
 	if err != nil {
 		return fmt.Errorf("could not get authentication/cluster: %v", err)

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -91,6 +92,10 @@ func NewMetadataController(instanceName string,
 }
 
 func (c *metadataController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "cao.metadataController")
+	defer span.End()
+
 	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {

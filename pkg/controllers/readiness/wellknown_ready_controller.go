@@ -26,6 +26,7 @@ import (
 	"github.com/openshift/library-go/pkg/controller/factory"
 	"github.com/openshift/library-go/pkg/operator/events"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
+	"go.opentelemetry.io/otel"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -106,6 +107,10 @@ func NewWellKnownReadyController(
 }
 
 func (c *wellKnownReadyController) sync(ctx context.Context, controllerContext factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "cao.wellKnownReadyController")
+	defer span.End()
+
 	operatorSpec, operatorStatus, _, err := c.operatorClient.GetOperatorState(ctx)
 	if err != nil {
 		return err

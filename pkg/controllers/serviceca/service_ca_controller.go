@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"go.opentelemetry.io/otel"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	corev1 "k8s.io/api/core/v1"
@@ -73,6 +74,10 @@ func NewServiceCAController(
 }
 
 func (c *serviceCAController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "cao.serviceCAController")
+	defer span.End()
+
 	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {

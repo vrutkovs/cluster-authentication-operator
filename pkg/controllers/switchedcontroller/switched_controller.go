@@ -9,6 +9,7 @@ import (
 	"github.com/openshift/library-go/pkg/controller/factory"
 	"github.com/openshift/library-go/pkg/operator/events"
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
+	"go.opentelemetry.io/otel"
 )
 
 type ControllerWithSwitch struct {
@@ -73,6 +74,10 @@ func NewControllerWithSwitch(
 }
 
 func (c *ControllerWithSwitch) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "cao.ControllerWithSwitch")
+	defer span.End()
+
 	switchOn, err := c.switchConditionFn()
 	if err != nil {
 		return fmt.Errorf("could not determine switch condition: %v", err)

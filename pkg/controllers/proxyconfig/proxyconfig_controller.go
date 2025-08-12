@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	"golang.org/x/net/http/httpproxy"
 
 	corev1lister "k8s.io/client-go/listers/core/v1"
@@ -73,6 +74,10 @@ func NewProxyConfigChecker(
 
 // sync attempts to connect to route using configured proxy settings and reports any error.
 func (p *proxyConfigChecker) sync(ctx context.Context, _ factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "cao.proxyConfigChecker")
+	defer span.End()
+
 	if oidcAvailable, err := p.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {

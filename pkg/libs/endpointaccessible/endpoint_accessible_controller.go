@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -77,6 +78,10 @@ func humanizeError(err error) error {
 }
 
 func (c *endpointAccessibleController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "cao.endpointAccessibleController")
+	defer span.End()
+
 	if c.endpointCheckDisabledFunc != nil {
 		if skip, err := c.endpointCheckDisabledFunc(ctx); err != nil {
 			return err

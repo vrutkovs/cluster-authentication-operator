@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
@@ -36,6 +37,9 @@ func NewTerminationController(configInformer configinformers.SharedInformerFacto
 }
 
 func (c *terminationController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "cao.terminationController")
+	defer span.End()
 
 	// check the ClusterVersion object to see if the console is currently enabled.
 	// Since this controller only runs when the console capability is disabled at operator startup time

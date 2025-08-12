@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -103,6 +104,10 @@ func NewCustomRouteController(
 }
 
 func (c *customRouteController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "cao.customRouteController")
+	defer span.End()
+
 	ingressConfig, err := c.ingressLister.Get(ctx, "cluster")
 	if err != nil {
 		return err

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -101,6 +102,10 @@ func NewOAuthClientsSwitchedController(
 }
 
 func (c *oauthClientsController) sync(ctx context.Context, syncCtx factory.SyncContext) error {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "cao.oauthClientsController")
+	defer span.End()
+
 	ingress, err := c.getIngressConfig(ctx)
 	if err != nil {
 		return err

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	corev1informers "k8s.io/client-go/informers/core/v1"
@@ -99,6 +100,10 @@ func NewRouterCertsDomainValidationController(
 }
 
 func (c *routerCertsDomainValidationController) sync(ctx context.Context, syncCtx factory.SyncContext) (err error) {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "cao.routerCertsDomainValidationController")
+	defer span.End()
+
 	if oidcAvailable, err := c.authConfigChecker.OIDCAvailable(ctx); err != nil {
 		return err
 	} else if oidcAvailable {

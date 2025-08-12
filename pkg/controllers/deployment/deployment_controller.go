@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"go.opentelemetry.io/otel"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -188,6 +189,10 @@ func (c *oauthServerDeploymentSyncer) PreconditionFulfilled(ctx context.Context)
 }
 
 func (c *oauthServerDeploymentSyncer) Sync(ctx context.Context, syncContext factory.SyncContext) (*appsv1.Deployment, bool, []error) {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "cao.oauthServerDeploymentSyncer")
+	defer span.End()
+
 	errs := []error{}
 
 	operatorSpec, operatorStatus, _, err := c.operatorClient.GetOperatorState(ctx)

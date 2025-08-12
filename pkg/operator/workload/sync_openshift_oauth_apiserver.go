@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/openshift/library-go/pkg/operator/v1helpers"
+	"go.opentelemetry.io/otel"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -150,6 +151,10 @@ func (c *OAuthAPIServerWorkload) preconditionFulfilledInternal(operatorSpec *ope
 
 // Sync essentially manages OAuthAPI server.
 func (c *OAuthAPIServerWorkload) Sync(ctx context.Context, syncCtx factory.SyncContext) (*appsv1.Deployment, bool, []error) {
+	tracer := otel.GetTracerProvider().Tracer("cao")
+	ctx, span := tracer.Start(ctx, "cao.OAuthAPIServerWorkload")
+	defer span.End()
+
 	errs := []error{}
 
 	operatorSpec, operatorStatus, _, err := c.operatorClient.GetOperatorState(ctx)
